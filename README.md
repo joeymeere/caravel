@@ -168,4 +168,4 @@ Anyone claiming such is a scammer.
 
 ## License
 
-MIT
+Apache 2.0
