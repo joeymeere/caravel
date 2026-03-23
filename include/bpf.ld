@@ -16,6 +16,7 @@ SECTIONS
   .dynsym : { *(.dynsym) } :data
   .dynstr : { *(.dynstr) } :data
   .rel.dyn : { *(.rel.dyn) } :data
+  .bss : { *(.bss*) } :data
   /DISCARD/ : {
       *(.eh_frame*)
       *(.gnu.hash*)

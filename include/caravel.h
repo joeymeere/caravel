@@ -25,6 +25,10 @@
 #include "caravel/cpi.h"
 #include "caravel/pda.h"
 
+#ifndef CVL_NO_HEAP
+#include "caravel/heap.h"
+#endif
+
 #ifndef CVL_NO_SYSTEM
 #include "caravel/system.h"
 #endif
