@@ -110,4 +110,7 @@ static inline bool cvl_pubkey_is_default(const CvlPubkey *key) {
 #define NULL ((void *)0)
 #endif
 
+#define CVL_LIKELY(x)   __builtin_expect(!!(x), 1)
+#define CVL_UNLIKELY(x) __builtin_expect(!!(x), 0)
+
 #endif /* CVL_TYPES_H */
