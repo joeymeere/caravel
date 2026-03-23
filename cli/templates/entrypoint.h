@@ -1,0 +1,73 @@
+#ifndef CVL_TPL_ENTRYPOINT_H
+#define CVL_TPL_ENTRYPOINT_H
+
+static const char *TPL_ENTRYPOINT_C =
+"#include <caravel.h>\n"
+"#include \"state.h\"\n"
+"\n"
+"/* @cvl:instruction initialize 0 */\n"
+"\n"
+"#define INIT_ACCOUNTS(X) \\\n"
+"    X(payer,          CVL_SIGNER | CVL_WRITABLE) \\\n"
+"    X(counter,        CVL_SIGNER | CVL_WRITABLE) \\\n"
+"    X(system_program, CVL_PROGRAM)\n"
+"\n"
+"CVL_DEFINE_ACCOUNTS(initialize, INIT_ACCOUNTS)\n"
+"\n"
+"static uint64_t handle_initialize(CvlParameters *params) {\n"
+"    initialize_accounts_t ctx;\n"
+"    CVL_TRY(initialize_parse(params, &ctx));\n"
+"\n"
+"    CvlRent rent;\n"
+"    cvl_get_rent(&rent);\n"
+"    uint64_t lamports = cvl_minimum_balance(&rent, sizeof(CounterState));\n"
+"\n"
+"    CVL_TRY(cvl_system_create_account(\n"
+"        ctx.payer, ctx.counter,\n"
+"        lamports, sizeof(CounterState), params->program_id,\n"
+"        params->accounts, (int)params->accounts_len\n"
+"    ));\n"
+"\n"
+"    CounterState *state = CVL_ACCOUNT_STATE(ctx.counter, CounterState);\n"
+"    state->count = 0;\n"
+"    sol_memcpy_(state->authority.bytes, ctx.payer->key->bytes, 32);\n"
+"\n"
+"    cvl_log_literal(\"initialized\");\n"
+"    return CVL_SUCCESS;\n"
+"}\n"
+"\n"
+"static uint64_t process(CvlParameters *params) {\n"
+"    CVL_DISPATCH(params,\n"
+"        CVL_INSTRUCTION(0, handle_initialize)\n"
+"    );\n"
+"    return CVL_ERROR_UNKNOWN_INSTRUCTION;\n"
+"}\n"
+"\n"
+"CVL_ENTRYPOINT(process);\n";
+
+static const char *TPL_STATE_H =
+"#ifndef %s_STATE_H\n"
+"#define %s_STATE_H\n"
+"\n"
+"#include <caravel.h>\n"
+"\n"
+"/* @cvl:state CounterState */\n"
+"typedef struct {\n"
+"    uint64_t  count;\n"
+"    CvlPubkey authority;\n"
+"} CounterState;\n"
+"\n"
+"#endif /* %s_STATE_H */\n";
+
+static const char *TPL_INSTRUCTIONS_H =
+"#ifndef %s_INSTRUCTIONS_H\n"
+"#define %s_INSTRUCTIONS_H\n"
+"\n"
+"/*\n"
+" * Add additional instruction handlers here.\n"
+" * Include this file from entrypoint.c and add to CVL_DISPATCH.\n"
+" */\n"
+"\n"
+"#endif /* %s_INSTRUCTIONS_H */\n";
+
+#endif /* CVL_TPL_ENTRYPOINT_H */
