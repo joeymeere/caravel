@@ -13,6 +13,32 @@ typedef signed short       int16_t;
 typedef signed int         int32_t;
 typedef signed long long   int64_t;
 
+/**
+ * Stack-allocated growable array
+ *
+ * @usage:
+ * CvlVec(uint64_t, 10) prices = CVL_VEC_INIT;
+ * cvl_vec_push(&prices, 42);
+ * cvl_vec_push(&prices, 100);
+ * uint64_t last = cvl_vec_pop(&prices);
+ * uint64_t first = prices.data[0];
+ */
+ #define CvlVec(T, cap) struct { uint32_t len; T data[cap]; }
+ #define CVL_VEC_INIT { .len = 0 }
+
+ #define cvl_vec_cap(v) \
+     (sizeof((v)->data) / sizeof((v)->data[0]))
+ 
+ #define cvl_vec_len(v)  ((v)->len)
+ #define cvl_vec_full(v) ((v)->len >= cvl_vec_cap(v))
+ #define cvl_vec_clear(v) ((v)->len = 0)
+
+ #define cvl_vec_push(v, val) \
+     ((v)->data[(v)->len++] = (val))
+ 
+ #define cvl_vec_pop(v) \
+     ((v)->data[--(v)->len])
+
 typedef struct {
     uint8_t bytes[32];
 } CvlPubkey;

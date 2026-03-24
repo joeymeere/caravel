@@ -50,7 +50,6 @@ describe("Vault Program", () => {
       programId
     );
 
-    // Pre-create vault PDA as program-owned (ghost PDA pattern)
     svm.setAccount(vaultPda, {
       lamports: 0,
       data: new Uint8Array(0),
