@@ -1,7 +1,9 @@
 #include "pool.h"
 
 /* @cvl:instruction add_liquidity 1 */
+/* @cvl:args amount_a:u64 amount_b:u64 min_lp:u64 */
 /* @cvl:instruction remove_liquidity 2 */
+/* @cvl:args lp_amount:u64 min_a:u64 min_b:u64 */
 
 #define LIQUIDITY_ACCOUNTS(X) \
     X(user,          CVL_SIGNER) \

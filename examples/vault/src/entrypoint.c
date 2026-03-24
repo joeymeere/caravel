@@ -7,6 +7,7 @@
  */
 
 /* @cvl:instruction deposit 0 */
+/* @cvl:args amount:u64 bump:u8 */
 
 #define DEPOSIT_ACCOUNTS(X) \
     X(user,           CVL_SIGNER | CVL_WRITABLE) \
@@ -45,6 +46,7 @@ static uint64_t handle_deposit(CvlParameters *params) {
 }
 
 /* @cvl:instruction withdraw 1 */
+/* @cvl:args amount:u64 bump:u8 */
 
 #define WITHDRAW_ACCOUNTS(X) \
     X(user,  CVL_SIGNER | CVL_WRITABLE) \

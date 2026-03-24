@@ -1,6 +1,7 @@
 #include "pool.h"
 
 /* @cvl:instruction swap 3 */
+/* @cvl:args amount_in:u64 min_amount_out:u64 direction:u8 */
 
 #define SWAP_ACCOUNTS(X) \
     X(user,          CVL_SIGNER) \

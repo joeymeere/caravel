@@ -2,6 +2,7 @@
 #include "state.h"
 
 /* @cvl:instruction deposit 0 */
+/* @cvl:args amount:u64 */
 
 #define DEPOSIT_ACCOUNTS(X) \
     X(authority,      CVL_SIGNER) \
@@ -75,6 +76,7 @@ static uint64_t handle_deposit(CvlParameters *params) {
 }
 
 /* @cvl:instruction withdraw 1 */
+/* @cvl:args amount:u64 */
 
 #define WITHDRAW_ACCOUNTS(X) \
     X(authority,     CVL_SIGNER) \

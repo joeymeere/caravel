@@ -1,23 +1,21 @@
-/*
- * @brief IDL gen
- * supported annotations (as C comments):
- *   @cvl:instruction <name> <discriminator>
- *   @cvl:account     <name> <flags>        (within instruction scope)
- *   @cvl:field        <name> <type>         (within instruction scope)
- *   @cvl:state        <name>                (marks a state struct)
- */
-
 #include "cli.h"
 #include "config.h"
 
 #define MAX_INSTRUCTIONS 64
 #define MAX_ACCOUNTS     16
-#define MAX_FIELDS       16
+#define MAX_ARGS         16
+#define MAX_FIELDS       32
 #define MAX_STATES       32
+#define MAX_ERRORS       64
+#define MAX_PENDING      8
+#define MAX_FILES        128
 
 typedef struct {
     char name[CVL_MAX_NAME];
-    char flags[CVL_MAX_NAME]; /* esc "mut,signer" */
+    bool is_writable;
+    bool is_signer;
+    bool is_program;
+    char address[64];
 } IdlAccount;
 
 typedef struct {
@@ -30,7 +28,7 @@ typedef struct {
     int        discriminator;
     IdlAccount accounts[MAX_ACCOUNTS];
     int        num_accounts;
-    IdlField   args[MAX_FIELDS];
+    IdlField   args[MAX_ARGS];
     int        num_args;
 } IdlInstruction;
 
@@ -40,220 +38,372 @@ typedef struct {
     int      num_fields;
 } IdlState;
 
+typedef struct {
+    char name[CVL_MAX_NAME];
+    int  code;
+} IdlError;
+
 static IdlInstruction g_instructions[MAX_INSTRUCTIONS];
-static int            g_num_instructions = 0;
+static int            g_num_instructions;
 
 static IdlState       g_states[MAX_STATES];
-static int            g_num_states = 0;
+static int            g_num_states;
 
-/* ptr to the "current" ix being built */
-static IdlInstruction *g_cur_ix = NULL;
+static IdlError       g_errors[MAX_ERRORS];
+static int            g_num_errors;
 
-/* ptr to the "current" state being built */
-static IdlState       *g_cur_state = NULL;
+static int  g_pending_ix[MAX_PENDING];
+static int  g_num_pending;
 
-/* parse single line looking for `@cvl:` annotations. */
-static void parse_line(const char *raw_line) {
+static IdlAccount g_temp_accounts[MAX_ACCOUNTS];
+static int        g_num_temp_accounts;
+
+static bool      g_in_accounts_macro;
+static bool      g_waiting_for_struct;
+static IdlState *g_cur_state;
+
+static char g_files[MAX_FILES][CVL_MAX_PATH];
+static int  g_num_files;
+
+static void snake_to_camel(const char *snake, char *out, int max) {
+    int j = 0;
+    bool cap = false;
+    for (int i = 0; snake[i] && j < max - 1; i++) {
+        if (snake[i] == '_') {
+            cap = true;
+        } else {
+            out[j++] = (cap && snake[i] >= 'a' && snake[i] <= 'z')
+                        ? (char)(snake[i] - 32) : snake[i];
+            cap = false;
+        }
+    }
+    out[j] = '\0';
+}
+
+static void screaming_to_pascal(const char *src, char *out, int max) {
+    int j = 0;
+    bool cap = true;
+    for (int i = 0; src[i] && j < max - 1; i++) {
+        if (src[i] == '_') {
+            cap = true;
+        } else {
+            if (cap) {
+                out[j++] = src[i]; /* alr uppercase */
+            } else {
+                out[j++] = (src[i] >= 'A' && src[i] <= 'Z')
+                            ? (char)(src[i] + 32) : src[i];
+            }
+            cap = false;
+        }
+    }
+    out[j] = '\0';
+}
+
+static const char *map_c_type(const char *ct) {
+    if (strcmp(ct, "uint8_t")  == 0) return "u8";
+    if (strcmp(ct, "uint16_t") == 0) return "u16";
+    if (strcmp(ct, "uint32_t") == 0) return "u32";
+    if (strcmp(ct, "uint64_t") == 0) return "u64";
+    if (strcmp(ct, "int8_t")   == 0) return "i8";
+    if (strcmp(ct, "int16_t")  == 0) return "i16";
+    if (strcmp(ct, "int32_t")  == 0) return "i32";
+    if (strcmp(ct, "int64_t")  == 0) return "i64";
+    if (strcmp(ct, "CvlPubkey") == 0) return "publicKey";
+    if (strcmp(ct, "bool")     == 0) return "bool";
+    return ct;
+}
+
+static const char *known_program_address(const char *name) {
+    if (strcmp(name, "system_program") == 0)
+        return "11111111111111111111111111111111";
+    if (strcmp(name, "token_program") == 0)
+        return "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+    if (strcmp(name, "associated_token_program") == 0)
+        return "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+    return NULL;
+}
+
+static void parse_line(const char *raw) {
     char line[2048];
-    strncpy(line, raw_line, sizeof(line) - 1);
+    strncpy(line, raw, sizeof(line) - 1);
     line[sizeof(line) - 1] = '\0';
 
-    char *at = strstr(line, "@cvl:");
-    if (!at) return;
+    size_t len = strlen(line);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'
+                       || line[len - 1] == ' '  || line[len - 1] == '\t'))
+        line[--len] = '\0';
+    bool continuation = (len > 0 && line[len - 1] == '\\');
 
-    char *p = at + 5; /* skip "@cvl:" */
+    if (g_in_accounts_macro) {
+        char *x = strstr(line, "X(");
+        if (x && g_num_temp_accounts < MAX_ACCOUNTS) {
+            char *p = x + 2;
+            /* name */
+            char name[CVL_MAX_NAME] = {0};
+            int i = 0;
+            while (*p && *p != ',' && *p != ')' && i < CVL_MAX_NAME - 1) {
+                if (*p != ' ' && *p != '\t') name[i++] = *p;
+                p++;
+            }
+            name[i] = '\0';
 
-    char directive[64] = {0};
-    int i = 0;
-    while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-           && i < (int)sizeof(directive) - 1) {
-        directive[i++] = *p++;
+            /* flags */
+            char flags[256] = {0};
+            if (*p == ',') {
+                p++;
+                i = 0;
+                while (*p && *p != ')' && i < 255) flags[i++] = *p++;
+                flags[i] = '\0';
+            }
+
+            IdlAccount *acc = &g_temp_accounts[g_num_temp_accounts++];
+            memset(acc, 0, sizeof(*acc));
+            strncpy(acc->name, name, CVL_MAX_NAME - 1);
+            acc->is_writable = (strstr(flags, "CVL_WRITABLE") != NULL);
+            acc->is_signer   = (strstr(flags, "CVL_SIGNER")   != NULL);
+            acc->is_program  = (strstr(flags, "CVL_PROGRAM")  != NULL);
+            const char *addr = known_program_address(name);
+            if (addr) strncpy(acc->address, addr, 63);
+        }
+        if (!continuation) g_in_accounts_macro = false;
+        return;
     }
-    directive[i] = '\0';
 
-    while (*p == ' ' || *p == '\t') p++;
+    if (g_waiting_for_struct) {
+        if (strchr(line, '{')) g_waiting_for_struct = false;
+        return;
+    }
 
-    /* @cvl:instruction <name> <discriminator> */
-    if (strcmp(directive, "instruction") == 0) {
+    if (g_cur_state) {
+        if (strchr(line, '}')) { g_cur_state = NULL; return; }
+
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '\0' || *p == '#' || *p == '/' || *p == '*') return;
+
+        char ctype[CVL_MAX_NAME] = {0};
+        int i = 0;
+        while (*p && *p != ' ' && *p != '\t' && i < CVL_MAX_NAME - 1)
+            ctype[i++] = *p++;
+        ctype[i] = '\0';
+        while (*p == ' ' || *p == '\t') p++;
+
+        char fname[CVL_MAX_NAME] = {0};
+        i = 0;
+        while (*p && *p != ';' && *p != '[' && *p != ' ' && *p != '\t'
+               && i < CVL_MAX_NAME - 1)
+            fname[i++] = *p++;
+        fname[i] = '\0';
+
+        if (fname[0] == '_' || fname[0] == '\0') return; /* skip pad */
+
+        int array_size = 0;
+        if (*p == '[') { p++; array_size = atoi(p); }
+
+        if (g_cur_state->num_fields < MAX_FIELDS) {
+            IdlField *f = &g_cur_state->fields[g_cur_state->num_fields++];
+            strncpy(f->name, fname, CVL_MAX_NAME - 1);
+            if (array_size > 0) {
+                snprintf(f->type, CVL_MAX_NAME, "{\"array\":[\"%s\",%d]}",
+                         map_c_type(ctype), array_size);
+            } else {
+                strncpy(f->type, map_c_type(ctype), CVL_MAX_NAME - 1);
+            }
+        }
+        return;
+    }
+
+    char *at = strstr(line, "@cvl:instruction");
+    if (at) {
         if (g_num_instructions >= MAX_INSTRUCTIONS) return;
+        char *p = at + 16;
+        while (*p == ' ' || *p == '\t') p++;
 
-        IdlInstruction *ix = &g_instructions[g_num_instructions++];
+        IdlInstruction *ix = &g_instructions[g_num_instructions];
         memset(ix, 0, sizeof(*ix));
 
-        /* name */
-        i = 0;
+        int i = 0;
         while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-               && i < CVL_MAX_NAME - 1) {
+               && i < CVL_MAX_NAME - 1)
             ix->name[i++] = *p++;
-        }
         ix->name[i] = '\0';
 
-        /* skip whitespace */
         while (*p == ' ' || *p == '\t') p++;
-
-        /* discriminator */
         ix->discriminator = atoi(p);
 
-        g_cur_ix    = ix;
-        g_cur_state = NULL;
+        if (g_num_pending < MAX_PENDING)
+            g_pending_ix[g_num_pending++] = g_num_instructions;
+        g_num_instructions++;
         return;
     }
 
-    /* @cvl:account <name> <flags> */
-    if (strcmp(directive, "account") == 0) {
-        if (!g_cur_ix) return;
-        if (g_cur_ix->num_accounts >= MAX_ACCOUNTS) return;
-
-        IdlAccount *acc = &g_cur_ix->accounts[g_cur_ix->num_accounts++];
-        memset(acc, 0, sizeof(*acc));
-
-        /* name */
-        i = 0;
-        while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-               && i < CVL_MAX_NAME - 1) {
-            acc->name[i++] = *p++;
-        }
-        acc->name[i] = '\0';
-
+    at = strstr(line, "@cvl:args");
+    if (at) {
+        if (g_num_instructions == 0) return;
+        IdlInstruction *ix = &g_instructions[g_num_instructions - 1];
+        char *p = at + 9;
         while (*p == ' ' || *p == '\t') p++;
 
-        /* flags */
-        i = 0;
-        while (*p && *p != '*' && *p != '/' && *p != '\n' && *p != '\r'
-               && i < CVL_MAX_NAME - 1) {
-            acc->flags[i++] = *p++;
-        }
-        acc->flags[i] = '\0';
-        /* trim trailing whitespace from flags */
-        while (i > 0 && (acc->flags[i - 1] == ' ' || acc->flags[i - 1] == '\t'))
-            acc->flags[--i] = '\0';
+        while (*p && *p != '*' && *p != '/') {
+            while (*p == ' ' || *p == '\t') p++;
+            if (*p == '*' || *p == '/' || *p == '\0') break;
 
-        return;
-    }
+            char name[CVL_MAX_NAME] = {0};
+            int i = 0;
+            while (*p && *p != ':' && i < CVL_MAX_NAME - 1) name[i++] = *p++;
+            while (i > 0 && (name[i-1] == ' ' || name[i-1] == '\t')) i--;
+            name[i] = '\0';
 
-    /* @cvl:field <name> <type> */
-    if (strcmp(directive, "field") == 0) {
-        /* could belong to an instruction or a state? */
-        if (g_cur_state) {
-            if (g_cur_state->num_fields >= MAX_FIELDS) return;
+            if (*p != ':') break;
+            p++;
 
-            IdlField *f = &g_cur_state->fields[g_cur_state->num_fields++];
-            memset(f, 0, sizeof(*f));
-
+            char type[CVL_MAX_NAME] = {0};
             i = 0;
             while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
                    && i < CVL_MAX_NAME - 1)
-                f->name[i++] = *p++;
-            f->name[i] = '\0';
+                type[i++] = *p++;
+            type[i] = '\0';
 
-            while (*p == ' ' || *p == '\t') p++;
-
-            i = 0;
-            while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-                   && *p != '\n' && *p != '\r' && i < CVL_MAX_NAME - 1)
-                f->type[i++] = *p++;
-            f->type[i] = '\0';
-        } else if (g_cur_ix) {
-            if (g_cur_ix->num_args >= MAX_FIELDS) return;
-
-            IdlField *f = &g_cur_ix->args[g_cur_ix->num_args++];
-            memset(f, 0, sizeof(*f));
-
-            i = 0;
-            while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-                   && i < CVL_MAX_NAME - 1)
-                f->name[i++] = *p++;
-            f->name[i] = '\0';
-
-            while (*p == ' ' || *p == '\t') p++;
-
-            i = 0;
-            while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
-                   && *p != '\n' && *p != '\r' && i < CVL_MAX_NAME - 1)
-                f->type[i++] = *p++;
-            f->type[i] = '\0';
+            if (name[0] && type[0] && ix->num_args < MAX_ARGS) {
+                IdlField *f = &ix->args[ix->num_args++];
+                strncpy(f->name, name, CVL_MAX_NAME - 1);
+                strncpy(f->type, type, CVL_MAX_NAME - 1);
+            }
         }
         return;
     }
 
-    /* @cvl:state <name> */
-    if (strcmp(directive, "state") == 0) {
+    at = strstr(line, "@cvl:state");
+    if (at) {
         if (g_num_states >= MAX_STATES) return;
+        char *p = at + 10;
+        while (*p == ' ' || *p == '\t') p++;
 
         IdlState *st = &g_states[g_num_states++];
         memset(st, 0, sizeof(*st));
 
-        i = 0;
+        int i = 0;
         while (*p && *p != ' ' && *p != '\t' && *p != '*' && *p != '/'
                && *p != '\n' && *p != '\r' && i < CVL_MAX_NAME - 1)
             st->name[i++] = *p++;
         st->name[i] = '\0';
 
         g_cur_state = st;
-        g_cur_ix    = NULL;
+        g_waiting_for_struct = true;
         return;
+    }
+
+    if (strstr(line, "#define") && strstr(line, "CVL_ERROR_CUSTOM(")) {
+        char *p = strstr(line, "#define") + 7;
+        while (*p == ' ' || *p == '\t') p++;
+
+        char macro[CVL_MAX_NAME] = {0};
+        int i = 0;
+        while (*p && *p != ' ' && *p != '\t' && i < CVL_MAX_NAME - 1)
+            macro[i++] = *p++;
+        macro[i] = '\0';
+
+        char *num_p = strstr(line, "CVL_ERROR_CUSTOM(") + 17;
+        int n = atoi(num_p);
+
+        char *err_part = strstr(macro, "_ERROR_");
+        if (!err_part) return;
+        err_part += 7;
+
+        if (g_num_errors >= MAX_ERRORS) return;
+        IdlError *err = &g_errors[g_num_errors++];
+        screaming_to_pascal(err_part, err->name, CVL_MAX_NAME);
+        err->code = 0x100 + n;
+        return;
+    }
+
+    if (strstr(line, "#define") && strstr(line, "_ACCOUNTS(X)")) {
+        g_in_accounts_macro = true;
+        g_num_temp_accounts = 0;
+        if (!continuation) g_in_accounts_macro = false;
+        return;
+    }
+
+    if (strstr(line, "CVL_DEFINE_ACCOUNTS(")) {
+        for (int pi = 0; pi < g_num_pending; pi++) {
+            IdlInstruction *ix = &g_instructions[g_pending_ix[pi]];
+            for (int a = 0; a < g_num_temp_accounts && a < MAX_ACCOUNTS; a++)
+                ix->accounts[a] = g_temp_accounts[a];
+            ix->num_accounts = g_num_temp_accounts;
+        }
+        g_num_pending = 0;
     }
 }
 
-/* scan a single file for annotations */
 static int scan_file(const char *path) {
     FILE *fp = fopen(path, "r");
     if (!fp) {
         fprintf(stderr, "warning: cannot open %s: %s\n", path, strerror(errno));
         return -1;
     }
-
     char line[2048];
-    while (fgets(line, sizeof(line), fp)) {
+    while (fgets(line, sizeof(line), fp))
         parse_line(line);
-    }
-
     fclose(fp);
     return 0;
 }
 
-/* scan all src and header files in a directory */
-static int scan_directory(const char *dir) {
+static void collect_files(const char *dir, const char *ext) {
     DIR *dp = opendir(dir);
-    if (!dp) {
-        fprintf(stderr, "err: cannot open directory '%s': %s\n",
-                dir, strerror(errno));
-        return -1;
-    }
+    if (!dp) return;
 
     struct dirent *ent;
     char path[CVL_MAX_PATH];
 
     while ((ent = readdir(dp)) != NULL) {
-        size_t len = strlen(ent->d_name);
-        bool is_c = (len > 2 && strcmp(ent->d_name + len - 2, ".c") == 0);
-        bool is_h = (len > 2 && strcmp(ent->d_name + len - 2, ".h") == 0);
+        if (ent->d_name[0] == '.') continue;
+        snprintf(path, sizeof(path), "%s/%s", dir, ent->d_name);
 
-        if (is_c || is_h) {
-            snprintf(path, sizeof(path), "%s/%s", dir, ent->d_name);
-            scan_file(path);
+        struct stat st;
+        if (stat(path, &st) != 0) continue;
+
+        if (S_ISDIR(st.st_mode)) {
+            collect_files(path, ext);
+        } else {
+            size_t nlen = strlen(ent->d_name);
+            size_t elen = strlen(ext);
+            if (nlen > elen && strcmp(ent->d_name + nlen - elen, ext) == 0) {
+                if (g_num_files < MAX_FILES)
+                    strncpy(g_files[g_num_files++], path, CVL_MAX_PATH - 1);
+            }
         }
     }
-
     closedir(dp);
+}
+
+static int compare_paths(const void *a, const void *b) {
+    return strcmp((const char *)a, (const char *)b);
+}
+
+static int compare_ix(const void *a, const void *b) {
+    return ((const IdlInstruction *)a)->discriminator
+         - ((const IdlInstruction *)b)->discriminator;
+}
+
+static int scan_directory(const char *dir) {
+    g_num_files = 0;
+    collect_files(dir, ".h");
+    qsort(g_files, g_num_files, CVL_MAX_PATH, compare_paths);
+    for (int i = 0; i < g_num_files; i++) scan_file(g_files[i]);
+
+    g_num_files = 0;
+    collect_files(dir, ".c");
+    qsort(g_files, g_num_files, CVL_MAX_PATH, compare_paths);
+    for (int i = 0; i < g_num_files; i++) scan_file(g_files[i]);
+
     return 0;
 }
 
-/* map CVL type annotations to IDL types */
-static const char *map_type(const char *cvl_type) {
-    if (strcmp(cvl_type, "u8") == 0)      return "u8";
-    if (strcmp(cvl_type, "u16") == 0)     return "u16";
-    if (strcmp(cvl_type, "u32") == 0)     return "u32";
-    if (strcmp(cvl_type, "u64") == 0)     return "u64";
-    if (strcmp(cvl_type, "i8") == 0)      return "i8";
-    if (strcmp(cvl_type, "i16") == 0)     return "i16";
-    if (strcmp(cvl_type, "i32") == 0)     return "i32";
-    if (strcmp(cvl_type, "i64") == 0)     return "i64";
-    if (strcmp(cvl_type, "bool") == 0)    return "bool";
-    if (strcmp(cvl_type, "pubkey") == 0)  return "publicKey";
-    if (strcmp(cvl_type, "string") == 0)  return "string";
-    if (strcmp(cvl_type, "bytes") == 0)   return "bytes";
-    return cvl_type; /* pass thru unknowns */
+static void emit_type(FILE *fp, const char *type) {
+    if (type[0] == '{')
+        fprintf(fp, "%s", type);
+    else
+        fprintf(fp, "\"%s\"", type);
 }
 
 static int emit_idl(const char *output_path, const CvlConfig *cfg) {
@@ -264,50 +414,67 @@ static int emit_idl(const char *output_path, const CvlConfig *cfg) {
         return -1;
     }
 
+    /* sort ixs by discriminator */
+    qsort(g_instructions, g_num_instructions,
+          sizeof(IdlInstruction), compare_ix);
+
     fprintf(fp, "{\n");
-    fprintf(fp, "  \"version\": \"%s\",\n", cfg->version);
-    fprintf(fp, "  \"name\": \"%s\",\n", cfg->name);
+    fprintf(fp, "  \"address\": \"\",\n");
+    fprintf(fp, "  \"metadata\": {\n");
+    fprintf(fp, "    \"name\": \"%s\",\n", cfg->name);
+    fprintf(fp, "    \"version\": \"%s\",\n", cfg->version);
+    fprintf(fp, "    \"spec\": \"0.1.0\"\n");
+    fprintf(fp, "  },\n");
 
     fprintf(fp, "  \"instructions\": [\n");
     for (int i = 0; i < g_num_instructions; i++) {
         IdlInstruction *ix = &g_instructions[i];
+        char cname[CVL_MAX_NAME];
+        snake_to_camel(ix->name, cname, CVL_MAX_NAME);
+
         fprintf(fp, "    {\n");
-        fprintf(fp, "      \"name\": \"%s\",\n", ix->name);
+        fprintf(fp, "      \"name\": \"%s\",\n", cname);
         fprintf(fp, "      \"discriminator\": [%d],\n", ix->discriminator);
 
         fprintf(fp, "      \"accounts\": [\n");
         for (int a = 0; a < ix->num_accounts; a++) {
             IdlAccount *acc = &ix->accounts[a];
+            char cacc[CVL_MAX_NAME];
+            snake_to_camel(acc->name, cacc, CVL_MAX_NAME);
 
-            bool is_mut    = (strstr(acc->flags, "mut") != NULL);
-            bool is_signer = (strstr(acc->flags, "signer") != NULL);
-
-            fprintf(fp, "        {\n");
-            fprintf(fp, "          \"name\": \"%s\",\n", acc->name);
-            fprintf(fp, "          \"isMut\": %s,\n", is_mut ? "true" : "false");
-            fprintf(fp, "          \"isSigner\": %s\n", is_signer ? "true" : "false");
-            fprintf(fp, "        }%s\n",
-                    (a < ix->num_accounts - 1) ? "," : "");
+            fprintf(fp, "        { \"name\": \"%s\"", cacc);
+            if (acc->is_program && acc->address[0]) {
+                fprintf(fp, ", \"address\": \"%s\"", acc->address);
+            } else {
+                if (acc->is_writable) fprintf(fp, ", \"writable\": true");
+                if (acc->is_signer)   fprintf(fp, ", \"signer\": true");
+            }
+            fprintf(fp, " }%s\n", (a < ix->num_accounts - 1) ? "," : "");
         }
         fprintf(fp, "      ],\n");
 
         fprintf(fp, "      \"args\": [\n");
         for (int f = 0; f < ix->num_args; f++) {
-            IdlField *field = &ix->args[f];
-            fprintf(fp, "        {\n");
-            fprintf(fp, "          \"name\": \"%s\",\n", field->name);
-            fprintf(fp, "          \"type\": \"%s\"\n", map_type(field->type));
-            fprintf(fp, "        }%s\n",
+            char carg[CVL_MAX_NAME];
+            snake_to_camel(ix->args[f].name, carg, CVL_MAX_NAME);
+            fprintf(fp, "        { \"name\": \"%s\", \"type\": \"%s\" }%s\n",
+                    carg, ix->args[f].type,
                     (f < ix->num_args - 1) ? "," : "");
         }
         fprintf(fp, "      ]\n");
 
-        fprintf(fp, "    }%s\n",
-                (i < g_num_instructions - 1) ? "," : "");
+        fprintf(fp, "    }%s\n", (i < g_num_instructions - 1) ? "," : "");
     }
     fprintf(fp, "  ],\n");
 
     fprintf(fp, "  \"accounts\": [\n");
+    for (int s = 0; s < g_num_states; s++) {
+        fprintf(fp, "    { \"name\": \"%s\", \"discriminator\": [] }%s\n",
+                g_states[s].name, (s < g_num_states - 1) ? "," : "");
+    }
+    fprintf(fp, "  ],\n");
+
+    fprintf(fp, "  \"types\": [\n");
     for (int s = 0; s < g_num_states; s++) {
         IdlState *st = &g_states[s];
         fprintf(fp, "    {\n");
@@ -316,17 +483,23 @@ static int emit_idl(const char *output_path, const CvlConfig *cfg) {
         fprintf(fp, "        \"kind\": \"struct\",\n");
         fprintf(fp, "        \"fields\": [\n");
         for (int f = 0; f < st->num_fields; f++) {
-            IdlField *field = &st->fields[f];
-            fprintf(fp, "          {\n");
-            fprintf(fp, "            \"name\": \"%s\",\n", field->name);
-            fprintf(fp, "            \"type\": \"%s\"\n", map_type(field->type));
-            fprintf(fp, "          }%s\n",
-                    (f < st->num_fields - 1) ? "," : "");
+            char cf[CVL_MAX_NAME];
+            snake_to_camel(st->fields[f].name, cf, CVL_MAX_NAME);
+            fprintf(fp, "          { \"name\": \"%s\", \"type\": ", cf);
+            emit_type(fp, st->fields[f].type);
+            fprintf(fp, " }%s\n", (f < st->num_fields - 1) ? "," : "");
         }
         fprintf(fp, "        ]\n");
         fprintf(fp, "      }\n");
-        fprintf(fp, "    }%s\n",
-                (s < g_num_states - 1) ? "," : "");
+        fprintf(fp, "    }%s\n", (s < g_num_states - 1) ? "," : "");
+    }
+    fprintf(fp, "  ],\n");
+
+    fprintf(fp, "  \"errors\": [\n");
+    for (int e = 0; e < g_num_errors; e++) {
+        fprintf(fp, "    { \"code\": %d, \"name\": \"%s\" }%s\n",
+                g_errors[e].code, g_errors[e].name,
+                (e < g_num_errors - 1) ? "," : "");
     }
     fprintf(fp, "  ]\n");
 
@@ -344,10 +517,14 @@ int cmd_idl(int argc, char **argv) {
         return 1;
     }
 
-    g_num_instructions = 0;
-    g_num_states       = 0;
-    g_cur_ix           = NULL;
-    g_cur_state        = NULL;
+    g_num_instructions   = 0;
+    g_num_states         = 0;
+    g_num_errors         = 0;
+    g_num_pending        = 0;
+    g_num_temp_accounts  = 0;
+    g_in_accounts_macro  = false;
+    g_waiting_for_struct = false;
+    g_cur_state          = NULL;
 
     if (scan_directory(cfg.src_dir) != 0) return 1;
 
@@ -358,8 +535,8 @@ int cmd_idl(int argc, char **argv) {
 
     if (emit_idl(output, &cfg) != 0) return 1;
 
-    printf("  [IDL] %s  (%d instruction(s), %d state type(s))\n",
-           output, g_num_instructions, g_num_states);
+    printf("  [IDL] %s  (%d instruction(s), %d state(s), %d error(s))\n",
+           output, g_num_instructions, g_num_states, g_num_errors);
 
     return 0;
 }
