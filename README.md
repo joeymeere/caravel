@@ -1,6 +1,6 @@
 # Caravel
 
-A header-only C framework for building Solana programs
+A C framework/toolkit for building Solana programs
 
 ## Prerequisites
 
