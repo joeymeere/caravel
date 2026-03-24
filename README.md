@@ -4,7 +4,7 @@ A C framework/toolkit for building Solana programs
 
 ## Prerequisites
 
-- **Solana platform-tools** — Provides `clang` and `ld.lld` targeting SBF. Install via `solana-install` or download from the [Solana releases](https://github.com/anza-xyz/agave/releases).
+- **Platform Tools** — install via `solana-install` or download from the [Solana releases](https://github.com/anza-xyz/agave/releases).
 - **Node.js** (v18+, for testing)
 - **Solana CLI**
 
@@ -14,7 +14,7 @@ Build the CLI:
 
 ```sh
 cd cli
-make
+make install
 ```
 
 Then create a new project, build, and test:
@@ -22,8 +22,8 @@ Then create a new project, build, and test:
 ```sh
 caravel init my_program
 cd my_program
-caravel build
-caravel test
+caravel build # if needed, prepend `CARAVEL_INCLUDE=<path-to-/include>`
+caravel test # if needed, prepend `CARAVEL_INCLUDE=<path-to-/include>`
 ```
 
 ### Entrypoint
@@ -144,7 +144,7 @@ CVL_TRY(cvl_token_transfer_signed(
 ));
 ```
 
-## CLI Commands
+## CLI Reference
 
 | Command | Description |
 |---------|-------------|
@@ -155,6 +155,19 @@ CVL_TRY(cvl_token_transfer_signed(
 | `caravel clean` | Remove the `build/` directory |
 | `caravel idl` | Generate Anchor-compatible `build/idl.json` from `@cvl:` annotations |
 
+## Compile Options
+
+Define these before `#include <caravel.h>` (or pass via `-D` flags) to customize certain characteristics:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CVL_MAX_ACCOUNTS` | `16` | Max accounts per instruction |
+| `CVL_NO_HEAP` | *(not set)* | Exclude the built-in bump allocator entirely. |
+| `CVL_CUSTOM_HEAP` | *(not set)* | Keep heap constants (`CVL_HEAP_START`, `CVL_HEAP_SZ`) but skip the default bump allocator so you can provide your own. |
+| `CVL_HEAP_SZ` | `32768` | Override the heap size (bytes). |
+| `CVL_NO_SYSTEM` | *(not set)* | Exclude System program CPI helpers (`cvl_system_transfer`, `cvl_system_create_account`, etc.). |
+| `CVL_NO_TOKEN` | *(not set)* | Exclude SPL Token CPI helpers (`cvl_token_transfer`, `cvl_token_mint_to`, etc.). |
+| `CVL_DEBUG` | *(not set)* | Enable `cvl_debug()`, `cvl_debug_u64()`, and `cvl_debug_pubkey()` macros. When not set, these compile to no-ops. |
 
 ## Disclaimer
 
