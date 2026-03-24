@@ -1,3 +1,10 @@
+/**
+ * @brief System program helpers
+ *
+ * @note Compile opts:
+ *   - CVL_NO_SYSTEM       — Exclude this header entirely, no system program helpers
+ */
+
 #ifndef CVL_SYSTEM_H
 #define CVL_SYSTEM_H
 
@@ -12,6 +19,15 @@
 
 /**
  * Transfer lamports from one account to another via the System program.
+ *
+ * @param from The account to transfer from
+ * @param to The account to transfer to
+ * @param lamports The number of lamports to transfer
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_TRANSFER(from, to, lamports, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_transfer(
     CvlAccountInfo *from,
@@ -43,6 +59,17 @@ static inline uint64_t cvl_system_transfer(
 
 /**
  * Transfer lamports from a PDA to another account.
+ *
+ * @param from The account to transfer from
+ * @param to The account to transfer to
+ * @param lamports The number of lamports to transfer
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_TRANSFER_SIGNED(from, to, lamports, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_system_transfer_signed(
     CvlAccountInfo *from,
@@ -76,6 +103,17 @@ static inline uint64_t cvl_system_transfer_signed(
 
 /**
  * Create a new account via the System program.
+ *
+ * @param payer The account to pay for the new account
+ * @param new_account The new account to create
+ * @param lamports The number of lamports to transfer
+ * @param space The space to allocate for the new account
+ * @param owner The owner of the new account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_CREATE_ACCOUNT(payer, new_account, lamports, space, owner, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_create_account(
     CvlAccountInfo *payer,
@@ -111,6 +149,19 @@ static inline uint64_t cvl_system_create_account(
 
 /**
  * Create a new PDA account via the System program (signed by PDA seeds).
+ *
+ * @param payer The account to pay for the new account
+ * @param new_account The new account to create
+ * @param lamports The number of lamports to transfer
+ * @param space The space to allocate for the new account
+ * @param owner The owner of the new account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_CREATE_ACCOUNT_SIGNED(payer, new_account, lamports, space, owner, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_system_create_account_signed(
     CvlAccountInfo *payer,
@@ -148,6 +199,14 @@ static inline uint64_t cvl_system_create_account_signed(
 
 /**
  * Allocate space for an account.
+ *
+ * @param account The account to allocate space for
+ * @param space The space to allocate for the account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_ALLOCATE(account, space, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_allocate(
     CvlAccountInfo *account,
@@ -176,6 +235,14 @@ static inline uint64_t cvl_system_allocate(
 
 /**
  * Assign an account to a new program owner.
+ *
+ * @param account The account to assign
+ * @param owner The new owner of the account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_SYSTEM_ASSIGN(account, owner, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_assign(
     CvlAccountInfo *account,
@@ -200,6 +267,37 @@ static inline uint64_t cvl_system_assign(
     };
 
     return cvl_invoke(&ix, accounts, accounts_len);
+}
+
+/**
+ * Assign a PDA account to a new program owner (signed by PDA seeds).
+ */
+static inline uint64_t cvl_system_assign_signed(
+    CvlAccountInfo *account,
+    const CvlPubkey *owner,
+    CvlAccountInfo *accounts,
+    int accounts_len,
+    const CvlSignerSeeds *signer_seeds,
+    int signer_seeds_len
+) {
+    uint8_t ix_data[36];
+    *(uint32_t *)ix_data = CVL_SYSTEM_IX_ASSIGN;
+    sol_memcpy_(ix_data + 4, owner->bytes, 32);
+
+    CvlAccountMeta metas[1] = {
+        cvl_meta_writable_signer(account->key),
+    };
+
+    CvlInstruction ix = {
+        .program_id   = (CvlPubkey *)&CVL_SYSTEM_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 1,
+        .data         = ix_data,
+        .data_len     = sizeof(ix_data),
+    };
+
+    return cvl_invoke_signed(&ix, accounts, accounts_len,
+                              signer_seeds, signer_seeds_len);
 }
 
 #endif /* CVL_SYSTEM_H */

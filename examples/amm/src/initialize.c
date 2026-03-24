@@ -18,7 +18,6 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
     init_pool_accounts_t ctx;
     CVL_TRY(init_pool_parse(params, &ctx));
 
-    /* Derive pool PDA */
     CvlSignerSeed derive_seeds[] = {
         CVL_SEED_STR("amm"),
         CVL_SEED_PUBKEY(ctx.mint_a->key),
@@ -29,13 +28,11 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
     cvl_find_program_address(derive_seeds, 3, params->program_id,
                              &expected, &bump);
 
-    /* Validate pool_state address matches PDA */
     if (!cvl_pubkey_equals(ctx.pool_state->key, &expected)) {
         cvl_log_literal("Error: pool_state PDA mismatch");
         return CVL_ERROR_INVALID_PDA;
     }
 
-    /* Check not already initialized */
     if (ctx.pool_state->data_len > 0) {
         PoolState *existing = CVL_ACCOUNT_STATE(ctx.pool_state, PoolState);
         if (existing->is_initialized) {
@@ -43,7 +40,6 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
         }
     }
 
-    /* Validate vault A: owner = pool PDA, mint = mint_a */
     CvlTokenAccount *va = CVL_TOKEN_ACCOUNT(ctx.vault_a);
     if (!cvl_pubkey_equals(&va->owner, &expected)) {
         cvl_log_literal("Error: vault_a owner mismatch");
@@ -54,7 +50,6 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
         return CVL_ERROR_INVALID_ARGUMENT;
     }
 
-    /* Validate vault B: owner = pool PDA, mint = mint_b */
     CvlTokenAccount *vb = CVL_TOKEN_ACCOUNT(ctx.vault_b);
     if (!cvl_pubkey_equals(&vb->owner, &expected)) {
         cvl_log_literal("Error: vault_b owner mismatch");
@@ -65,14 +60,12 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
         return CVL_ERROR_INVALID_ARGUMENT;
     }
 
-    /* Validate LP mint authority = pool PDA */
     CvlMintAccount *lp = CVL_MINT_ACCOUNT(ctx.lp_mint);
     if (!cvl_pubkey_equals(&lp->mint_authority, &expected)) {
         cvl_log_literal("Error: LP mint authority mismatch");
         return AMM_ERROR_INVALID_LP_AUTHORITY;
     }
 
-    /* Create pool state account (PDA-signed) */
     CvlRent rent;
     cvl_get_rent(&rent);
     uint64_t lamports = cvl_minimum_balance(&rent, sizeof(PoolState));

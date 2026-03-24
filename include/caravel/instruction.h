@@ -13,7 +13,11 @@
  * Define a single instruction case in a dispatch table.
  * Used inside CVL_DISPATCH.
  *
- * handler signature: uint64_t handler(CvlParameters *params)
+ * @param disc The discriminator to match
+ * @param handler The handler to call if the discriminator matches
+ * @return The result of the handler
+ *
+ * @usage: CVL_INSTRUCTION(0, handle_initialize);
  */
 #define CVL_INSTRUCTION(disc, handler) \
     case (disc): return handler(params);
@@ -21,14 +25,11 @@
 /**
  * Dispatch to instruction handlers based on the discriminator byte.
  *
- * Usage:
- *   CVL_DISPATCH(params,
- *       CVL_INSTRUCTION(0, handle_initialize)
- *       CVL_INSTRUCTION(1, handle_increment)
- *       CVL_INSTRUCTION(2, handle_decrement)
- *   );
+ * @param params The parameters to dispatch to
+ * @param ... The instructions to dispatch to
+ * @return CVL_ERROR_UNKNOWN_INSTRUCTION for unrecognized discriminators
  *
- * Returns CVL_ERROR_UNKNOWN_INSTRUCTION for unrecognized discriminators.
+ * @usage: CVL_DISPATCH(params, CVL_INSTRUCTION(0, handle_initialize), CVL_INSTRUCTION(1, handle_increment), CVL_INSTRUCTION(2, handle_decrement));
  */
 #define CVL_DISPATCH(params, ...) \
     do { \
@@ -52,7 +53,12 @@
 
 /**
  * Cast instruction data (after discriminator) to a typed struct pointer.
- * Usage: MyIxData *data = CVL_IX_DATA_AS(params, MyIxData);
+ *
+ * @param params The parameters to cast
+ * @param type The type to cast to (e.g. MyIxData)
+ * @return The pointer to the casted data
+ *
+ * @usage: MyIxData *data = CVL_IX_DATA_AS(params, MyIxData);
  */
 #define CVL_IX_DATA_AS(params, type) ((type *)CVL_IX_DATA(params))
 

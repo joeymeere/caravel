@@ -14,7 +14,11 @@ typedef struct {
 
 /**
  * Read the Clock sysvar into the provided struct.
- * Returns CVL_SUCCESS on success.
+ *
+ * @param clock Pointer to a CvlClock struct to fill
+ * @return CVL_SUCCESS on success
+ *
+ * @usage: CVL_GET_CLOCK(clock);
  */
 static inline uint64_t cvl_get_clock(CvlClock *clock) {
     return sol_get_clock_sysvar(clock);
@@ -28,7 +32,11 @@ typedef struct {
 
 /**
  * Read the Rent sysvar into the provided struct.
- * Returns CVL_SUCCESS on success.
+ *
+ * @param rent Pointer to a CvlRent struct to fill
+ * @return CVL_SUCCESS on success
+ *
+ * @usage: CVL_GET_RENT(rent);
  */
 static inline uint64_t cvl_get_rent(CvlRent *rent) {
     return sol_get_rent_sysvar(rent);
@@ -36,9 +44,12 @@ static inline uint64_t cvl_get_rent(CvlRent *rent) {
 
 /**
  * Calculate minimum balance for rent exemption.
- * data_len is the size of the account data in bytes.
  *
- * The exemption threshold is always 2.0 years on Solana
+ * @param rent Pointer to a CvlRent struct to use
+ * @param data_len The size of the account data in bytes
+ * @return The minimum balance for rent exemption
+ *
+ * @usage: CVL_MINIMUM_BALANCE(rent, data_len);
  */
 static inline uint64_t cvl_minimum_balance(const CvlRent *rent, uint64_t data_len) {
     /* 128 = account metadata overhead */

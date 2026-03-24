@@ -3,13 +3,14 @@ SRC_DIR   := src
 BUILD_DIR := build
 INCLUDE   := ../../include
 
-CLANG     ?= $(HOME)/.cache/solana/v1.51/platform-tools/llvm/bin/clang
-LLD       ?= $(HOME)/.cache/solana/v1.51/platform-tools/llvm/bin/ld.lld
+SOLANA_VER := $(shell ls -d $(HOME)/.cache/solana/v*/platform-tools 2>/dev/null | sort -t/ -k7 -V | tail -1 | xargs dirname)
+CLANG      ?= $(SOLANA_VER)/platform-tools/llvm/bin/clang
+LLD        ?= $(SOLANA_VER)/platform-tools/llvm/bin/ld.lld
 
-CFLAGS  := --target=sbf -fPIC -O2 -fno-builtin -I$(INCLUDE)
-LDFLAGS := -z notext -shared --Bdynamic $(INCLUDE)/bpf.ld --entry entrypoint
+CFLAGS  := --target=sbf -fPIC -Oz -fno-builtin -fdata-sections -I$(INCLUDE)
+LDFLAGS := -z notext -shared --Bdynamic --gc-sections $(INCLUDE)/bpf.ld --entry entrypoint
 
-SRCS := $(wildcard $(SRC_DIR)/*.c)
+SRCS := $(shell find $(SRC_DIR) -name '*.c')
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 SO   := $(BUILD_DIR)/program.so
 
@@ -20,11 +21,9 @@ all: $(SO)
 $(SO): $(OBJS)
 	$(LLD) $(LDFLAGS) -o $@ $^
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
 	$(CLANG) $(CFLAGS) -c $< -o $@
-
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)

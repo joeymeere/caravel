@@ -52,7 +52,6 @@ static inline uint64_t isqrt_wide(uint64_t hi, uint64_t lo) {
     if (hi == 0 && lo == 0) return 0;
 
     if (hi == 0) {
-        /* 64-bit Newton's method with bit-width initial guess */
         int b = 0;
         uint64_t t = lo;
         while (t > 0) { t >>= 1; b++; }
@@ -66,7 +65,6 @@ static inline uint64_t isqrt_wide(uint64_t hi, uint64_t lo) {
         return x;
     }
 
-    /* 128-bit case: estimate bit width, then Newton's via div_wide */
     int bits = 64;
     uint64_t t = hi;
     while (t > 0) { t >>= 1; bits++; }
@@ -75,7 +73,6 @@ static inline uint64_t isqrt_wide(uint64_t hi, uint64_t lo) {
 
     for (int i = 0; i < 128; i++) {
         uint64_t q = div_wide(hi, lo, x);
-        /* safe average: (x + q) / 2 without overflow */
         uint64_t nx = (x >> 1) + (q >> 1) + (x & q & 1);
         if (nx >= x) break;
         x = nx;
@@ -84,7 +81,7 @@ static inline uint64_t isqrt_wide(uint64_t hi, uint64_t lo) {
 }
 
 /**
- * Compute isqrt(a * b) using 128-bit intermediate.
+ * Compute isqrt(a * b)
  */
 static inline uint64_t isqrt_mul(uint64_t a, uint64_t b) {
     uint64_t hi, lo;

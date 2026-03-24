@@ -24,7 +24,6 @@ static uint64_t handle_deposit(CvlParameters *params) {
     }
     uint64_t amount = *(uint64_t *)(params->data + 1);
 
-    /* Derive vault_state PDA */
     CvlSignerSeed state_derive[] = {
         CVL_SEED_STR("token_vault"),
         CVL_SEED_PUBKEY(ctx.mint->key),
@@ -35,7 +34,6 @@ static uint64_t handle_deposit(CvlParameters *params) {
     cvl_find_program_address(state_derive, 3, params->program_id,
                              &state_expected, &state_bump);
 
-    /* Initialize vault_state on first deposit */
     if (ctx.vault_state->data_len == 0) {
         CvlRent rent;
         cvl_get_rent(&rent);
@@ -62,13 +60,11 @@ static uint64_t handle_deposit(CvlParameters *params) {
         state->bump = state_bump;
     }
 
-    /* Verify vault_state PDA matches */
     if (!cvl_pubkey_equals(ctx.vault_state->key, &state_expected)) {
         cvl_log_literal("Error: vault_state PDA mismatch");
         return CVL_ERROR_INVALID_PDA;
     }
 
-    /* Transfer tokens from user to vault */
     CVL_TRY(cvl_token_transfer(
         ctx.user_token, ctx.vault_token, ctx.authority, amount,
         params->accounts, (int)params->accounts_len
@@ -100,7 +96,6 @@ static uint64_t handle_withdraw(CvlParameters *params) {
     }
     uint64_t amount = *(uint64_t *)(params->data + 1);
 
-    /* Verify authority and mint */
     TokenVaultState *state = CVL_ACCOUNT_STATE(ctx.vault_state, TokenVaultState);
     if (!cvl_pubkey_equals(&state->authority, ctx.authority->key)) {
         cvl_log_literal("Error: authority mismatch");
@@ -111,7 +106,6 @@ static uint64_t handle_withdraw(CvlParameters *params) {
         return CVL_ERROR_INVALID_ARGUMENT;
     }
 
-    /* Transfer tokens from vault back to user, signed by vault_state PDA */
     CvlSignerSeed signer_seeds[] = {
         CVL_SEED_STR("token_vault"),
         CVL_SEED_PUBKEY(ctx.mint->key),

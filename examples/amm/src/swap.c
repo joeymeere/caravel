@@ -33,13 +33,11 @@ uint64_t handle_swap(CvlParameters *params) {
         return AMM_ERROR_INVALID_DIRECTION;
     }
 
-    /* Read pool state */
     PoolState *state = CVL_ACCOUNT_STATE(ctx.pool_state, PoolState);
     if (!state->is_initialized) {
         return AMM_ERROR_NOT_INITIALIZED;
     }
 
-    /* Read reserves */
     CvlTokenAccount *va = CVL_TOKEN_ACCOUNT(ctx.vault_a);
     CvlTokenAccount *vb = CVL_TOKEN_ACCOUNT(ctx.vault_b);
 
@@ -47,7 +45,6 @@ uint64_t handle_swap(CvlParameters *params) {
     CvlAccountInfo *vault_in, *vault_out, *user_in, *user_out;
 
     if (direction == 0) {
-        /* A → B */
         reserve_in  = va->amount;
         reserve_out = vb->amount;
         user_in     = ctx.user_token_a;
@@ -55,7 +52,6 @@ uint64_t handle_swap(CvlParameters *params) {
         user_out    = ctx.user_token_b;
         vault_out   = ctx.vault_b;
     } else {
-        /* B → A */
         reserve_in  = vb->amount;
         reserve_out = va->amount;
         user_in     = ctx.user_token_b;
@@ -64,8 +60,7 @@ uint64_t handle_swap(CvlParameters *params) {
         vault_out   = ctx.vault_a;
     }
 
-    /* Constant product with 0.3% fee:
-       out = (reserve_out * amount_in * 997) / (reserve_in * 1000 + amount_in * 997) */
+    /* out = (reserve_out * amount_in * 997) / (reserve_in * 1000 + amount_in * 997) */
     uint64_t amount_in_fee = amount_in * 997;
     uint64_t denom = reserve_in * 1000 + amount_in_fee;
     uint64_t amount_out = mul_div_u64(reserve_out, amount_in_fee, denom);
@@ -74,7 +69,6 @@ uint64_t handle_swap(CvlParameters *params) {
         return AMM_ERROR_SLIPPAGE_EXCEEDED;
     }
 
-    /* Build PDA signer seeds */
     CvlSignerSeed pool_seeds[] = {
         CVL_SEED_STR("amm"),
         CVL_SEED_PUBKEY(&state->mint_a),
@@ -83,13 +77,11 @@ uint64_t handle_swap(CvlParameters *params) {
     };
     CvlSignerSeeds pool_signer = { .seeds = pool_seeds, .len = 4 };
 
-    /* Transfer input from user to vault (user-signed) */
     CVL_TRY(cvl_token_transfer(
         user_in, vault_in, ctx.user, amount_in,
         params->accounts, (int)params->accounts_len
     ));
 
-    /* Transfer output from vault to user (PDA-signed) */
     CVL_TRY(cvl_token_transfer_signed(
         vault_out, user_out, ctx.pool_state, amount_out,
         params->accounts, (int)params->accounts_len,

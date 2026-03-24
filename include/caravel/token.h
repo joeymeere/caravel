@@ -1,3 +1,10 @@
+/**
+ * @brief Token program helpers
+ *
+ * @note Compile opts:
+ *   - CVL_NO_TOKEN       — Exclude this header entirely, no token program helpers
+ */
+
 #ifndef CVL_TOKEN_H
 #define CVL_TOKEN_H
 
@@ -52,6 +59,16 @@ typedef struct __attribute__((packed)) {
 
 /**
  * Transfer tokens from one token account to another.
+ *
+ * @param source The source token account to transfer from
+ * @param destination The destination token account to transfer to
+ * @param authority The authority to transfer the tokens
+ * @param amount The amount of tokens to transfer
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_TRANSFER(source, destination, authority, amount, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_transfer(
     CvlAccountInfo *source,
@@ -85,6 +102,18 @@ static inline uint64_t cvl_token_transfer(
 
 /**
  * Transfer tokens with PDA authority.
+ *
+ * @param source The source token account to transfer from
+ * @param destination The destination token account to transfer to
+ * @param authority The authority to transfer the tokens
+ * @param amount The amount of tokens to transfer
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_TRANSFER_SIGNED(source, destination, authority, amount, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_token_transfer_signed(
     CvlAccountInfo *source,
@@ -120,6 +149,16 @@ static inline uint64_t cvl_token_transfer_signed(
 
 /**
  * Mint tokens to a token account.
+ *
+ * @param mint The mint account to mint to
+ * @param destination The destination account to mint to
+ * @param mint_authority The mint authority to use
+ * @param amount The amount of tokens to mint
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_MINT_TO(mint, destination, mint_authority, amount, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_mint_to(
     CvlAccountInfo *mint,
@@ -152,6 +191,18 @@ static inline uint64_t cvl_token_mint_to(
 
 /**
  * Mint tokens with PDA mint authority.
+ *
+ * @param mint The mint account to mint to
+ * @param destination The destination account to mint to
+ * @param mint_authority The mint authority to use
+ * @param amount The amount of tokens to mint
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_MINT_TO_SIGNED(mint, destination, mint_authority, amount, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_token_mint_to_signed(
     CvlAccountInfo *mint,
@@ -187,6 +238,16 @@ static inline uint64_t cvl_token_mint_to_signed(
 
 /**
  * Burn tokens from a token account.
+ *
+ * @param token_account The token account to burn
+ * @param mint The mint account to burn from
+ * @param authority The authority to burn the tokens
+ * @param amount The amount of tokens to burn
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_BURN(token_account, mint, authority, amount, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_burn(
     CvlAccountInfo *token_account,
@@ -219,6 +280,15 @@ static inline uint64_t cvl_token_burn(
 
 /**
  * Close a token account, transferring remaining SOL to destination.
+ *
+ * @param token_account The token account to close
+ * @param destination The destination account to transfer remaining SOL to
+ * @param authority The authority to close the token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_CLOSE_ACCOUNT(token_account, destination, authority, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_close_account(
     CvlAccountInfo *token_account,
@@ -248,6 +318,17 @@ static inline uint64_t cvl_token_close_account(
 
 /**
  * Close a token account with PDA authority.
+ *
+ * @param token_account The token account to close
+ * @param destination The destination account to transfer remaining SOL to
+ * @param authority The authority to close the token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_CLOSE_ACCOUNT_SIGNED(token_account, destination, authority, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_token_close_account_signed(
     CvlAccountInfo *token_account,
@@ -280,6 +361,16 @@ static inline uint64_t cvl_token_close_account_signed(
 
 /**
  * Approve a delegate to transfer tokens.
+ *
+ * @param token_account The token account to approve
+ * @param delegate The delegate to approve
+ * @param owner The owner of the token account
+ * @param amount The amount of tokens to approve
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_APPROVE(token_account, delegate, owner, amount, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_approve(
     CvlAccountInfo *token_account,
@@ -312,6 +403,13 @@ static inline uint64_t cvl_token_approve(
 
 /**
  * Sync a native SOL token account's balance with its lamports.
+ *
+ * @param token_account The token account to sync
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
+ *
+ * @usage: CVL_TOKEN_SYNC_NATIVE(token_account, accounts, accounts_len);
  */
 static inline uint64_t cvl_token_sync_native(
     CvlAccountInfo *token_account,

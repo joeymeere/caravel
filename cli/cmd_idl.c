@@ -1,4 +1,5 @@
 /*
+ * @brief IDL gen
  * supported annotations (as C comments):
  *   @cvl:instruction <name> <discriminator>
  *   @cvl:account     <name> <flags>        (within instruction scope)

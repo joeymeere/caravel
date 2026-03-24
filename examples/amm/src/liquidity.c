@@ -33,13 +33,11 @@ uint64_t handle_add_liquidity(CvlParameters *params) {
         return AMM_ERROR_ZERO_AMOUNT;
     }
 
-    /* Read pool state */
     PoolState *state = CVL_ACCOUNT_STATE(ctx.pool_state, PoolState);
     if (!state->is_initialized) {
         return AMM_ERROR_NOT_INITIALIZED;
     }
 
-    /* Read reserves and LP supply */
     CvlTokenAccount *va = CVL_TOKEN_ACCOUNT(ctx.vault_a);
     CvlTokenAccount *vb = CVL_TOKEN_ACCOUNT(ctx.vault_b);
     uint64_t reserve_a = va->amount;
@@ -48,7 +46,6 @@ uint64_t handle_add_liquidity(CvlParameters *params) {
     CvlMintAccount *lp_mint = CVL_MINT_ACCOUNT(ctx.lp_mint);
     uint64_t supply = lp_mint->supply;
 
-    /* Calculate LP tokens to mint */
     uint64_t lp_amount;
     if (supply == 0) {
         /* First deposit: lp = sqrt(amount_a * amount_b) */
@@ -68,7 +65,6 @@ uint64_t handle_add_liquidity(CvlParameters *params) {
         return AMM_ERROR_SLIPPAGE_EXCEEDED;
     }
 
-    /* Build PDA signer seeds */
     CvlSignerSeed pool_seeds[] = {
         CVL_SEED_STR("amm"),
         CVL_SEED_PUBKEY(&state->mint_a),
@@ -89,7 +85,6 @@ uint64_t handle_add_liquidity(CvlParameters *params) {
         params->accounts, (int)params->accounts_len
     ));
 
-    /* Mint LP tokens to user (PDA-signed) */
     CVL_TRY(cvl_token_mint_to_signed(
         ctx.lp_mint, ctx.user_lp, ctx.pool_state, lp_amount,
         params->accounts, (int)params->accounts_len,
@@ -116,13 +111,11 @@ uint64_t handle_remove_liquidity(CvlParameters *params) {
         return AMM_ERROR_ZERO_AMOUNT;
     }
 
-    /* Read pool state */
     PoolState *state = CVL_ACCOUNT_STATE(ctx.pool_state, PoolState);
     if (!state->is_initialized) {
         return AMM_ERROR_NOT_INITIALIZED;
     }
 
-    /* Read reserves and LP supply */
     CvlTokenAccount *va = CVL_TOKEN_ACCOUNT(ctx.vault_a);
     CvlTokenAccount *vb = CVL_TOKEN_ACCOUNT(ctx.vault_b);
     uint64_t reserve_a = va->amount;
@@ -135,7 +128,6 @@ uint64_t handle_remove_liquidity(CvlParameters *params) {
         return AMM_ERROR_INSUFFICIENT_LP;
     }
 
-    /* Calculate token amounts to return */
     uint64_t amount_a = mul_div_u64(lp_amount, reserve_a, supply);
     uint64_t amount_b = mul_div_u64(lp_amount, reserve_b, supply);
 
@@ -143,7 +135,6 @@ uint64_t handle_remove_liquidity(CvlParameters *params) {
         return AMM_ERROR_SLIPPAGE_EXCEEDED;
     }
 
-    /* Build PDA signer seeds */
     CvlSignerSeed pool_seeds[] = {
         CVL_SEED_STR("amm"),
         CVL_SEED_PUBKEY(&state->mint_a),
@@ -152,20 +143,17 @@ uint64_t handle_remove_liquidity(CvlParameters *params) {
     };
     CvlSignerSeeds pool_signer = { .seeds = pool_seeds, .len = 4 };
 
-    /* Burn LP tokens (user-signed) */
     CVL_TRY(cvl_token_burn(
         ctx.user_lp, ctx.lp_mint, ctx.user, lp_amount,
         params->accounts, (int)params->accounts_len
     ));
 
-    /* Transfer token A from vault to user (PDA-signed) */
     CVL_TRY(cvl_token_transfer_signed(
         ctx.vault_a, ctx.user_token_a, ctx.pool_state, amount_a,
         params->accounts, (int)params->accounts_len,
         &pool_signer, 1
     ));
 
-    /* Transfer token B from vault to user (PDA-signed) */
     CVL_TRY(cvl_token_transfer_signed(
         ctx.vault_b, ctx.user_token_b, ctx.pool_state, amount_b,
         params->accounts, (int)params->accounts_len,

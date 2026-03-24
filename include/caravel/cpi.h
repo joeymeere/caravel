@@ -61,8 +61,15 @@ static inline CvlAccountMeta cvl_meta_readonly(CvlPubkey *pubkey) {
 /**
  * Build and invoke a CPI instruction on the stack.
  *
- * Usage:
- * ```c
+ * @param program_id The program id to invoke
+ * @param metas The account metas to use
+ * @param metas_len The length of the account metas array
+ * @param ix_data The instruction data to use
+ * @param ix_data_len The length of the instruction data
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ *
+ * @usage:
  *   CvlAccountMeta metas[] = {
  *       cvl_meta_writable_signer(from_key),
  *       cvl_meta_writable(to_key),
@@ -72,7 +79,6 @@ static inline CvlAccountMeta cvl_meta_readonly(CvlPubkey *pubkey) {
  *       &system_program_id, metas, 2, data, sizeof(data),
  *       params->accounts, params->accounts_len
  *   );
- * ```
  */
 #define CVL_CPI_INVOKE(program_id, metas, metas_len, ix_data, ix_data_len, \
                         accounts, accounts_len) \

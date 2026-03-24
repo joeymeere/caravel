@@ -8,14 +8,24 @@
 
 /**
  * Create a seed from a string literal.
- * Usage: CvlSignerSeed seed = CVL_SEED_STR("vault");
+ *
+ * @param s The string to use as a seed
+ * @return A CvlSignerSeed struct
+ *
+ * @usage:
+ * CvlSignerSeed seed = CVL_SEED_STR("vault");  
  */
 #define CVL_SEED_STR(s) \
     ((CvlSignerSeed){ .addr = (const uint8_t *)(s), .len = sizeof(s) - 1 })
 
 /**
  * Create a seed from a pubkey.
- * Usage: CvlSignerSeed seed = CVL_SEED_PUBKEY(authority_key);
+ *
+ * @param pubkey_ptr The public key to use as a seed
+ * @return A CvlSignerSeed struct
+ *
+ * @usage:
+ * CvlSignerSeed seed = CVL_SEED_PUBKEY(authority_key);
  */
 #define CVL_SEED_PUBKEY(pubkey_ptr) \
     ((CvlSignerSeed){ .addr = (pubkey_ptr)->bytes, .len = 32 })
@@ -23,22 +33,42 @@
 /**
  * Create a seed from a single byte (typically the bump seed).
  * Requires a backing variable for the byte.
- * Usage:
- *   uint8_t bump = 254;
- *   CvlSignerSeed seed = CVL_SEED_U8(&bump);
+ *
+ * @usage:
+ * uint8_t bump = 254;
+ * CvlSignerSeed seed = CVL_SEED_U8(&bump);
  */
 #define CVL_SEED_U8(byte_ptr) \
     ((CvlSignerSeed){ .addr = (const uint8_t *)(byte_ptr), .len = 1 })
 
 /**
  * Create a seed from a raw byte buffer.
+ *
+ * @param buf The byte buffer to use as a seed
+ * @param length The length of the byte buffer
+ * @return A CvlSignerSeed struct
+ *
+ * @usage:
+ * CvlSignerSeed seed = CVL_SEED_BYTES(buf, length);
  */
 #define CVL_SEED_BYTES(buf, length) \
     ((CvlSignerSeed){ .addr = (const uint8_t *)(buf), .len = (length) })
 
 /**
  * Find a program address (PDA) and its bump seed.
- * Returns CVL_SUCCESS on success.
+ *
+ * @param seeds The seeds to use to derive the PDA
+ * @param seeds_len The length of the seeds array
+ * @param program_id The program id to use to derive the PDA
+ * @param address The address to fill with the derived PDA
+ * @param bump The bump seed to fill with the derived PDA
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_PDA on failure
+ *
+ * @usage:
+ * CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
+ * CvlPubkey address;
+ * uint8_t bump;
+ * CVL_ASSERT_PDA(vault_acc, seeds, 2, program_id, &bump);
  */
 static inline uint64_t cvl_find_program_address(
     const CvlSignerSeed *seeds,
@@ -52,7 +82,21 @@ static inline uint64_t cvl_find_program_address(
 
 /**
  * Create a program address from seeds (including bump).
- * Returns CVL_SUCCESS on success, error if seeds produce a point on the curve.
+ *
+ * @param seeds The seeds to use to derive the PDA
+ * @param seeds_len The length of the seeds array
+ * @param program_id The program id to use to derive the PDA
+ * @param address The address to fill with the derived PDA
+ * @return CVL_SUCCESS on success, error if seeds produce a point on the curve
+ *
+ * @usage:
+ * CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
+ * CvlPubkey address;
+ * CVL_CREATE_PDA(vault_acc, seeds, 2, program_id, &address);
+ * if (error) {
+ *     cvl_log_literal("Error: PDA creation failed");
+ *     return error;
+ * }
  */
 static inline uint64_t cvl_create_program_address(
     const CvlSignerSeed *seeds,
@@ -64,10 +108,48 @@ static inline uint64_t cvl_create_program_address(
 }
 
 /**
+ * Derive a PDA via a single pass of sha256 with known valid inputs.
+ * 
+ * @note User must ensure that the seeds + bump result in a valid address
+ *
+ * @param seeds The seeds (including bump) to hash
+ * @param seeds_len The number of seeds (max 16)
+ * @param program_id The program id
+ * @param address the derived address
+ */
+static inline void cvl_derive_address(
+    const CvlSignerSeed *seeds,
+    int seeds_len,
+    const CvlPubkey *program_id,
+    CvlPubkey *address
+) {
+    CvlSignerSeed parts[18];
+
+    int i;
+    for (i = 0; i < seeds_len; i++) {
+        parts[i] = seeds[i];
+    }
+
+    static const uint8_t pda_marker[] = "ProgramDerivedAddress";
+
+    parts[i++] = (CvlSignerSeed){ .addr = program_id->bytes, .len = 32 };
+    parts[i++] = (CvlSignerSeed){ .addr = pda_marker,        .len = 21 };
+
+    sol_sha256(parts, (uint64_t)i, address->bytes);
+}
+
+/**
  * Assert that an account's key matches the expected PDA.
  * Derives the PDA from seeds + program_id and compares.
  *
- * Usage:
+ * @param acc The account to check
+ * @param seeds The seeds to use to derive the PDA
+ * @param seeds_len The length of the seeds array
+ * @param program_id The program id to use to derive the PDA
+ * @param bump_out The bump seed to use to derive the PDA
+ * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_PDA on failure
+ *
+ * @usage:
  *   CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
  *   CVL_ASSERT_PDA(vault_acc, seeds, 2, program_id, &bump);
  */

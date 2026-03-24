@@ -2,10 +2,12 @@
 #define CVL_HEAP_H
 
 /**
- * Compile opts:
- *   CVL_NO_HEAP       — Exclude this header entirely, no heap allocator
- *   CVL_CUSTOM_HEAP   — Only provide constants; you implement an allocator
- *   CVL_HEAP_SZ     — Override default 32kb
+ * @brief Heap allocator
+ *
+ * @note Compile opts:
+ *   - CVL_NO_HEAP       — Exclude this header entirely, no heap allocator
+ *   - CVL_CUSTOM_HEAP   — Only provide constants; you implement an allocator
+ *   - CVL_HEAP_SZ     — Override default 32kb
  */
 
 #include "types.h"
@@ -31,7 +33,10 @@ static inline void cvl_heap_init(void) {
 }
 
 /**
- * alloc `sz` bytes from the heap (8-byte aligned, zero-init) - returning NULL if the heap is exhausted
+ * alloc `sz` bytes from the heap (8-byte aligned, zero-init)
+ *
+ * @param sz The number of bytes to allocate
+ * @return The pointer to the allocated memory, or NULL if the heap is exhausted
  */
 static inline void *cvl_alloc(uint64_t sz) {
     /* Align up to 8 bytes */
@@ -56,7 +61,7 @@ static inline void cvl_free(void *ptr) {
 /**
  * reset the bump allocator, reclaiming all previous allocations
  * 
- * NOTE: All pointers returned by prior cvl_alloc() calls become invalid
+ * @note All pointers returned by prior cvl_alloc() calls become invalid
  */
 static inline void cvl_heap_reset(void) {
     _cvl_heap_pos = CVL_HEAP_START;

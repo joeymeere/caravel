@@ -1,12 +1,14 @@
-#ifndef CARAVEL_H
-#define CARAVEL_H
-
 /**
+ * @brief Caravel SDK
+ *
  * Compilation:
  *   - Define CVL_DEBUG before including to enable debug logging
  *   - Define CVL_NO_TOKEN to exclude SPL Token helpers
  *   - Define CVL_NO_SYSTEM to exclude System program helpers
  */
+
+#ifndef CARAVEL_H
+#define CARAVEL_H
 
 #include "caravel/types.h"
 #include "caravel/error.h"

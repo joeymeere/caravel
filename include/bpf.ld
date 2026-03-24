@@ -21,5 +21,9 @@ SECTIONS
       *(.eh_frame*)
       *(.gnu.hash*)
       *(.hash*)
+      *(.debug_*)
+      *(.comment*)
+      *(.symtab)
+      *(.strtab)
     }
 }

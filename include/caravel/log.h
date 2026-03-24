@@ -11,6 +11,8 @@ static inline uint64_t cvl_strlen(const char *s) {
 
 /**
  * Log a string message. Computes length at runtime.
+ *
+ * @param msg The string to log
  */
 static inline void cvl_log(const char *msg) {
     sol_log_(msg, cvl_strlen(msg));
@@ -18,12 +20,21 @@ static inline void cvl_log(const char *msg) {
 
 /**
  * Log a string literal. Length computed at compile time.
- * Usage: cvl_log_literal("Hello from Caravel!");
+ *
+ * @param msg The string to log
+ *
+ * @usage: cvl_log_literal("Hello from Caravel!");
  */
 #define cvl_log_literal(msg) sol_log_((msg), sizeof(msg) - 1)
 
 /**
  * Log up to 5 uint64 values (useful for debugging numbers).
+ *
+ * @param a The first uint64 value to log
+ * @param b The second uint64 value to log
+ * @param c The third uint64 value to log
+ * @param d The fourth uint64 value to log
+ * @param e The fifth uint64 value to log
  */
 static inline void cvl_log_64(uint64_t a, uint64_t b, uint64_t c,
                                uint64_t d, uint64_t e) {
@@ -32,6 +43,8 @@ static inline void cvl_log_64(uint64_t a, uint64_t b, uint64_t c,
 
 /**
  * Log a single u64 value.
+ *
+ * @param val The uint64 value to log
  */
 static inline void cvl_log_u64(uint64_t val) {
     sol_log_64_(0, 0, 0, 0, val);
@@ -39,6 +52,8 @@ static inline void cvl_log_u64(uint64_t val) {
 
 /**
  * Log a public key (base58 in validator logs).
+ *
+ * @param key The public key to log
  */
 static inline void cvl_log_pubkey(const CvlPubkey *key) {
     sol_log_pubkey(key);
@@ -46,6 +61,8 @@ static inline void cvl_log_pubkey(const CvlPubkey *key) {
 
 /**
  * Log remaining compute units.
+ *
+ * @usage: cvl_log_compute_units();
  */
 static inline void cvl_log_compute_units(void) {
     sol_log_compute_units_();

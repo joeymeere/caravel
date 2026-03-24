@@ -33,8 +33,7 @@
 })
 
 /**
- * Deserialize the raw input buffer into CvlParameters.
- * account_buf must be provided by the caller (stack-allocated)
+ * Deserialize the raw input buffer into CvlParameters - account_buf must be provided by the caller
  */
 static inline uint64_t cvl_deserialize(
     const uint8_t *input,
@@ -113,16 +112,9 @@ static inline uint64_t cvl_deserialize(
 }
 
 /**
- * Experimental deserializer — uses the second entrypoint parameter
- * to read instruction data + program_id directly, skipping the walk
- * past all account entries in the input buffer.
- *
- * Layout at ix_data:
  *   ix_data - 8  → u64 instruction_data_len
  *   ix_data      → [instruction_data_len] instruction data bytes
  *   ix_data + len → [32] program_id
- *
- * Accounts are still deserialized from `input` the standard way.
  */
  static inline uint64_t cvl_deserialize_exp(
     const uint8_t *input,
@@ -187,15 +179,12 @@ static inline uint64_t cvl_deserialize(
 }
 
 /**
- * Standard entrypoint macro. Generates the `entrypoint` function that
- * the Solana runtime calls, handles deserialization, and dispatches
- * to your handler
+ * Generates the `entrypoint` function, handles deserialization, and dispatches
+ * to your `process` handler
  *
- * Usage:
- * ```c
+ * @usage:
  *   uint64_t process(CvlParameters *params) { ... }
  *   CVL_ENTRYPOINT(process);
- * ```
  */
 #if !defined(CVL_NO_HEAP) && !defined(CVL_CUSTOM_HEAP)
 #define _CVL_HEAP_INIT() cvl_heap_init()
@@ -215,15 +204,15 @@ static inline uint64_t cvl_deserialize(
     }
 
 /**
- * Experimental entrypoint — uses the 2-param entrypoint signature
- * where the runtime passes a direct pointer to instruction data as
- * the second argument, avoiding the need to walk past all accounts
+ * Generates the `entrypoint` function using ix_data in r2, avoiding the 
+ * need to walk past all accounts in the input buffer, and thus saving CUs.
+ * 
+ * @note Use of this entrypoint is contingent on activation of SIMD-0321 (5xXZc66h4UdB6Yq7FzdBxBiRAFMMScMLwHxk2QZDaNZL).
+ *       See https://github.com/anza-xyz/agave/wiki/Feature-Gate-Tracker-Schedule for more details on activation.
  *
- * Usage:
- * ```c
+ * @usage:
  *   uint64_t process(CvlParameters *params) { ... }
  *   CVL_EXP_ENTRYPOINT(process);
- * ```
  */
 #define CVL_EXP_ENTRYPOINT(handler) \
     uint64_t entrypoint(const uint8_t *input, const uint8_t *ix_data) { \
@@ -237,14 +226,11 @@ static inline uint64_t cvl_deserialize(
     }
 
 /**
- * Lazy entrypoint — passes the raw input buffer to the handler.
- * Use when you want to deserialize manually or partially
+ * Noop entrypoint that simply passes the raw input buffer to your handler
  *
- * Usage:
- * ```c
+ * @usage:
  *   uint64_t process(const uint8_t *input) { ... }
  *   CVL_LAZY_ENTRYPOINT(process);
- * ```
  */
 #define CVL_LAZY_ENTRYPOINT(handler) \
     uint64_t entrypoint(const uint8_t *input) { \

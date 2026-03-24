@@ -17,10 +17,11 @@
 /**
  * Cast account data to a typed struct pointer (zero-copy).
  *
- * Usage:
- * ```c
- * MyState *state = CVL_ACCOUNT_STATE(acc, MyState);
- * ```
+ * @param acc The account to cast
+ * @param type The type to cast to (e.g. MyState)
+ * @return The pointer to the casted data
+ *
+ * @usage: MyState *state = CVL_ACCOUNT_STATE(acc, MyState);
  */
 #define CVL_ACCOUNT_STATE(acc, type) ((type *)((acc)->data))
 
@@ -81,32 +82,27 @@
  * Accounts are assigned indices automatically based on declaration order.
  *
  * 1. Define your accounts table:
- * ```c
+ * @usage:
  *    #define MY_ACCOUNTS(X) \
  *        X(payer,          CVL_SIGNER | CVL_WRITABLE) \
  *        X(counter,        CVL_WRITABLE) \
  *        X(system_program, CVL_PROGRAM)
- * ```
  *
  * 2. Generate the struct + parser:
- * ```c
- *    CVL_DEFINE_ACCOUNTS(my_instruction, MY_ACCOUNTS)
- * ```
+ * @usage: CVL_DEFINE_ACCOUNTS(my_instruction, MY_ACCOUNTS)
  *
  * This produces:
- * ```c
+ * @usage:
  *    typedef struct { CvlAccountInfo *payer, *counter, *system_program; }
  *      my_instruction_accounts_t;
  *    static inline uint64_t my_instruction_parse(CvlParameters *params,
  *      my_instruction_accounts_t *ctx) which validates flags and populates ctx.
- * ```
  */
 
-/* Internal: generate struct field */
 #define _CVL_ACCOUNT_FIELD(name, flags) \
     CvlAccountInfo *name;
 
-/* Internal: generate validation + assignment with auto-incrementing index */
+/* generate validation + assignment with auto-incrementing index */
 #define _CVL_ACCOUNT_VALIDATE(name, flags) \
     if (params->accounts_len <= _cvl_idx) { \
         cvl_log_literal("Error: not enough accounts for " #name); \
