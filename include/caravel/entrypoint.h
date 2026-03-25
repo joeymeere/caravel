@@ -182,7 +182,7 @@ static inline uint64_t cvl_deserialize(
  * Generates the `entrypoint` function, handles deserialization, and dispatches
  * to your `process` handler
  *
- * @usage:
+ * @code:
  *   uint64_t process(CvlParameters *params) { ... }
  *   CVL_ENTRYPOINT(process);
  */
@@ -210,7 +210,7 @@ static inline uint64_t cvl_deserialize(
  * @note Use of this entrypoint is contingent on activation of SIMD-0321 (5xXZc66h4UdB6Yq7FzdBxBiRAFMMScMLwHxk2QZDaNZL).
  *       See https://github.com/anza-xyz/agave/wiki/Feature-Gate-Tracker-Schedule for more details on activation.
  *
- * @usage:
+ * @code
  *   uint64_t process(CvlParameters *params) { ... }
  *   CVL_EXP_ENTRYPOINT(process);
  */
@@ -228,7 +228,7 @@ static inline uint64_t cvl_deserialize(
 /**
  * Noop entrypoint that simply passes the raw input buffer to your handler
  *
- * @usage:
+ * @code
  *   uint64_t process(const uint8_t *input) { ... }
  *   CVL_LAZY_ENTRYPOINT(process);
  */

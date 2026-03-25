@@ -23,7 +23,7 @@ static inline void cvl_log(const char *msg) {
  *
  * @param msg The string to log
  *
- * @usage: cvl_log_literal("Hello from Caravel!");
+ * @code cvl_log_literal("Hello from Caravel!");
  */
 #define cvl_log_literal(msg) sol_log_((msg), sizeof(msg) - 1)
 
@@ -61,8 +61,6 @@ static inline void cvl_log_pubkey(const CvlPubkey *key) {
 
 /**
  * Log remaining compute units.
- *
- * @usage: cvl_log_compute_units();
  */
 static inline void cvl_log_compute_units(void) {
     sol_log_compute_units_();

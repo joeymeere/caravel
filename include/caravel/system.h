@@ -27,7 +27,7 @@
  * @param accounts_len The length of the accounts array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_TRANSFER(from, to, lamports, accounts, accounts_len);
+ * @code CVL_SYSTEM_TRANSFER(from, to, lamports, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_transfer(
     CvlAccountInfo *from,
@@ -69,7 +69,7 @@ static inline uint64_t cvl_system_transfer(
  * @param signer_seeds_len The length of the signer seeds array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_TRANSFER_SIGNED(from, to, lamports, accounts, accounts_len, signer_seeds, signer_seeds_len);
+ * @code CVL_SYSTEM_TRANSFER_SIGNED(from, to, lamports, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_system_transfer_signed(
     CvlAccountInfo *from,
@@ -113,7 +113,7 @@ static inline uint64_t cvl_system_transfer_signed(
  * @param accounts_len The length of the accounts array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_CREATE_ACCOUNT(payer, new_account, lamports, space, owner, accounts, accounts_len);
+ * @code CVL_SYSTEM_CREATE_ACCOUNT(payer, new_account, lamports, space, owner, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_create_account(
     CvlAccountInfo *payer,
@@ -161,7 +161,7 @@ static inline uint64_t cvl_system_create_account(
  * @param signer_seeds_len The length of the signer seeds array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_CREATE_ACCOUNT_SIGNED(payer, new_account, lamports, space, owner, accounts, accounts_len, signer_seeds, signer_seeds_len);
+ * @code CVL_SYSTEM_CREATE_ACCOUNT_SIGNED(payer, new_account, lamports, space, owner, accounts, accounts_len, signer_seeds, signer_seeds_len);
  */
 static inline uint64_t cvl_system_create_account_signed(
     CvlAccountInfo *payer,
@@ -206,7 +206,7 @@ static inline uint64_t cvl_system_create_account_signed(
  * @param accounts_len The length of the accounts array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_ALLOCATE(account, space, accounts, accounts_len);
+ * @code CVL_SYSTEM_ALLOCATE(account, space, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_allocate(
     CvlAccountInfo *account,
@@ -242,7 +242,7 @@ static inline uint64_t cvl_system_allocate(
  * @param accounts_len The length of the accounts array
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_ARGUMENT on failure
  *
- * @usage: CVL_SYSTEM_ASSIGN(account, owner, accounts, accounts_len);
+ * @code CVL_SYSTEM_ASSIGN(account, owner, accounts, accounts_len);
  */
 static inline uint64_t cvl_system_assign(
     CvlAccountInfo *account,

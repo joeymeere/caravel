@@ -18,7 +18,7 @@ typedef struct {
  * @param clock Pointer to a CvlClock struct to fill
  * @return CVL_SUCCESS on success
  *
- * @usage: CVL_GET_CLOCK(clock);
+ * @code CVL_GET_CLOCK(clock);
  */
 static inline uint64_t cvl_get_clock(CvlClock *clock) {
     return sol_get_clock_sysvar(clock);
@@ -36,7 +36,7 @@ typedef struct {
  * @param rent Pointer to a CvlRent struct to fill
  * @return CVL_SUCCESS on success
  *
- * @usage: CVL_GET_RENT(rent);
+ * @code CVL_GET_RENT(rent);
  */
 static inline uint64_t cvl_get_rent(CvlRent *rent) {
     return sol_get_rent_sysvar(rent);
@@ -49,7 +49,7 @@ static inline uint64_t cvl_get_rent(CvlRent *rent) {
  * @param data_len The size of the account data in bytes
  * @return The minimum balance for rent exemption
  *
- * @usage: CVL_MINIMUM_BALANCE(rent, data_len);
+ * @code CVL_MINIMUM_BALANCE(rent, data_len);
  */
 static inline uint64_t cvl_minimum_balance(const CvlRent *rent, uint64_t data_len) {
     /* 128 = account metadata overhead */

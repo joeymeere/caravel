@@ -176,4 +176,219 @@ extern void sol_set_return_data(
  */
 extern uint64_t sol_get_stack_height(void);
 
+/**
+ * Get remaining compute units in the current transaction
+ */
+extern uint64_t sol_remaining_compute_units(void);
+
+/**
+ * Blake3
+ *
+ * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals_len Number of pairs
+ * @param result 32 byte array to hold the result
+ */
+extern uint64_t sol_blake3(
+    const CvlSignerSeed *vals,
+    uint64_t              vals_len,
+    uint8_t               result[32]
+);
+
+/**
+ * Poseidon hash (ZK-friendly)
+ *
+ * @param parameters Hash parameters (1 = Bn254X5)
+ * @param endianness 0 = big-endian, 1 = little-endian
+ * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals_len Number of pairs
+ * @param result 32 byte array to hold the result
+ */
+extern uint64_t sol_poseidon(
+    uint64_t              parameters,
+    uint64_t              endianness,
+    const CvlSignerSeed *vals,
+    uint64_t              vals_len,
+    uint8_t               result[32]
+);
+
+/**
+ * Recover a secp256k1 public key from a signed message hash
+ *
+ * @param hash 32-byte message hash
+ * @param recovery_id Recovery ID (0–3)
+ * @param signature 64-byte signature (r, s)
+ * @param result 64-byte recovered public key (x, y)
+ * @return 0 on success
+ */
+extern uint64_t sol_secp256k1_recover(
+    const uint8_t *hash,
+    uint64_t       recovery_id,
+    const uint8_t *signature,
+    uint8_t       *result
+);
+
+/**
+ * Validate a point on an elliptic curve
+ *
+ * @param curve_id 0 = Ed25519, 1 = Ristretto
+ * @param point Compressed point bytes
+ * @param result Unused (pass NULL)
+ * @return 0 if valid
+ */
+extern uint64_t sol_curve_validate_point(
+    uint64_t       curve_id,
+    const uint8_t *point,
+    uint8_t       *result
+);
+
+/**
+ * Elliptic curve group operation (add / subtract / multiply)
+ *
+ * @param curve_id 0 = Ed25519, 1 = Ristretto
+ * @param group_op 0 = add, 1 = subtract, 2 = multiply
+ * @param left Left input point
+ * @param right Right input point (or scalar for multiply)
+ * @param result Result point
+ */
+extern uint64_t sol_curve_group_op(
+    uint64_t       curve_id,
+    uint64_t       group_op,
+    const uint8_t *left,
+    const uint8_t *right,
+    uint8_t       *result
+);
+
+/**
+ * Elliptic curve multi-scalar multiplication
+ *
+ * @param curve_id 0 = Ed25519, 1 = Ristretto
+ * @param scalars Packed scalar bytes
+ * @param points Packed point bytes
+ * @param points_len Number of point/scalar pairs
+ * @param result Result point
+ */
+extern uint64_t sol_curve_multiscalar_mul(
+    uint64_t       curve_id,
+    const uint8_t *scalars,
+    const uint8_t *points,
+    uint64_t       points_len,
+    uint8_t       *result
+);
+
+/**
+ * Alt_bn128 group operation (EVM-compatible)
+ *
+ * @param group_op 0 = add, 1 = multiply, 2 = pairing
+ * @param input Serialized input
+ * @param input_size Input size in bytes
+ * @param result Result buffer (64 bytes for add/mul, 32 for pairing)
+ */
+extern uint64_t sol_alt_bn128_group_op(
+    uint64_t       group_op,
+    const uint8_t *input,
+    uint64_t       input_size,
+    uint8_t       *result
+);
+
+/**
+ * Alt_bn128 point compression / decompression
+ *
+ * @param op 0 = compress G1, 1 = decompress G1, 2 = compress G2, 3 = decompress G2
+ * @param input Input point bytes
+ * @param input_size Input size in bytes
+ * @param result Output buffer
+ */
+extern uint64_t sol_alt_bn128_compression(
+    uint64_t       op,
+    const uint8_t *input,
+    uint64_t       input_size,
+    uint8_t       *result
+);
+
+/**
+ * Big integer modular exponentiation
+ *
+ * @param params Serialized {base_len(32), exp_len(32), mod_len(32), base, exp, mod}
+ * @param result Output buffer (mod_len bytes)
+ */
+extern uint64_t sol_big_mod_exp(
+    const uint8_t *params,
+    uint8_t       *result
+);
+
+/**
+ * Get the epoch schedule sysvar
+ */
+extern uint64_t sol_get_epoch_schedule_sysvar(void *epoch_schedule);
+
+/**
+ * Get the epoch rewards sysvar
+ */
+extern uint64_t sol_get_epoch_rewards_sysvar(void *epoch_rewards);
+
+/**
+ * Get the last restart slot
+ *
+ * @param slot Pointer to a uint64_t to fill
+ */
+extern uint64_t sol_get_last_restart_slot(void *slot);
+
+/**
+ * Generic sysvar accessor — read arbitrary byte ranges from any sysvar
+ *
+ * @param sysvar_id 32-byte sysvar public key
+ * @param result Buffer to receive data
+ * @param offset Byte offset into the sysvar
+ * @param length Number of bytes to read
+ */
+extern uint64_t sol_get_sysvar(
+    const CvlPubkey *sysvar_id,
+    uint8_t         *result,
+    uint64_t         offset,
+    uint64_t         length
+);
+
+/**
+ * Get a processed sibling instruction from the current transaction
+ *
+ * @param index Instruction index (0 = most recent before current)
+ * @param meta Pointer to {uint64_t data_len; uint64_t accounts_len;} — filled by runtime;
+ *             set data_len/accounts_len to your buffer capacities before calling
+ * @param program_id Filled with the instruction's program ID
+ * @param data Buffer to receive instruction data
+ * @param accounts Buffer to receive account metas ({pubkey[32], is_signer, is_writable} each)
+ * @return 1 if found, 0 if index out of range
+ */
+extern uint64_t sol_get_processed_sibling_instruction(
+    uint64_t   index,
+    void      *meta,
+    CvlPubkey *program_id,
+    uint8_t   *data,
+    void      *accounts
+);
+
+/**
+ * Get total active stake for a vote account (or the entire cluster)
+ *
+ * @param vote_address Vote account pubkey, or NULL for total cluster stake
+ * @return Active stake in lamports
+ */
+extern uint64_t sol_get_epoch_stake(const CvlPubkey *vote_address);
+
+/**
+ * Abort the program immediately
+ */
+extern void abort(void);
+
+/**
+ * Panic with a message, source location
+ *
+ * @param message Error message string
+ * @param len Message length
+ * @param line Source line number
+ * @param column Source column number
+ */
+extern void sol_panic_(const char *message, uint64_t len,
+                       uint64_t line, uint64_t column);
+
 #endif /* CVL_SYSCALL_H */

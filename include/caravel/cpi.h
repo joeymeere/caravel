@@ -69,7 +69,7 @@ static inline CvlAccountMeta cvl_meta_readonly(CvlPubkey *pubkey) {
  * @param accounts The accounts to use
  * @param accounts_len The length of the accounts array
  *
- * @usage:
+ * @code:
  *   CvlAccountMeta metas[] = {
  *       cvl_meta_writable_signer(from_key),
  *       cvl_meta_writable(to_key),

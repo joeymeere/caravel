@@ -16,7 +16,7 @@ typedef signed long long   int64_t;
 /**
  * Stack-allocated growable array
  *
- * @usage:
+ * @code
  * CvlVec(uint64_t, 10) prices = CVL_VEC_INIT;
  * cvl_vec_push(&prices, 42);
  * cvl_vec_push(&prices, 100);

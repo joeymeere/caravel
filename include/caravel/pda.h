@@ -12,7 +12,7 @@
  * @param s The string to use as a seed
  * @return A CvlSignerSeed struct
  *
- * @usage:
+ * @code
  * CvlSignerSeed seed = CVL_SEED_STR("vault");  
  */
 #define CVL_SEED_STR(s) \
@@ -24,7 +24,7 @@
  * @param pubkey_ptr The public key to use as a seed
  * @return A CvlSignerSeed struct
  *
- * @usage:
+ * @code
  * CvlSignerSeed seed = CVL_SEED_PUBKEY(authority_key);
  */
 #define CVL_SEED_PUBKEY(pubkey_ptr) \
@@ -34,7 +34,7 @@
  * Create a seed from a single byte (typically the bump seed).
  * Requires a backing variable for the byte.
  *
- * @usage:
+ * @code
  * uint8_t bump = 254;
  * CvlSignerSeed seed = CVL_SEED_U8(&bump);
  */
@@ -48,7 +48,7 @@
  * @param length The length of the byte buffer
  * @return A CvlSignerSeed struct
  *
- * @usage:
+ * @code
  * CvlSignerSeed seed = CVL_SEED_BYTES(buf, length);
  */
 #define CVL_SEED_BYTES(buf, length) \
@@ -64,7 +64,7 @@
  * @param bump The bump seed to fill with the derived PDA
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_PDA on failure
  *
- * @usage:
+ * @code
  * CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
  * CvlPubkey address;
  * uint8_t bump;
@@ -89,7 +89,7 @@ static inline uint64_t cvl_find_program_address(
  * @param address The address to fill with the derived PDA
  * @return CVL_SUCCESS on success, error if seeds produce a point on the curve
  *
- * @usage:
+ * @code
  * CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
  * CvlPubkey address;
  * CVL_CREATE_PDA(vault_acc, seeds, 2, program_id, &address);
@@ -149,7 +149,7 @@ static inline void cvl_derive_address(
  * @param bump_out The bump seed to use to derive the PDA
  * @return CVL_SUCCESS on success, CVL_ERROR_INVALID_PDA on failure
  *
- * @usage:
+ * @code
  *   CvlSignerSeed seeds[] = { CVL_SEED_STR("vault"), CVL_SEED_PUBKEY(auth_key) };
  *   CVL_ASSERT_PDA(vault_acc, seeds, 2, program_id, &bump);
  */

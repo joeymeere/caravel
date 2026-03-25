@@ -21,7 +21,7 @@
  * @param type The type to cast to (e.g. MyState)
  * @return The pointer to the casted data
  *
- * @usage: MyState *state = CVL_ACCOUNT_STATE(acc, MyState);
+ * @code: MyState *state = CVL_ACCOUNT_STATE(acc, MyState);
  */
 #define CVL_ACCOUNT_STATE(acc, type) ((type *)((acc)->data))
 
@@ -82,17 +82,17 @@
  * Accounts are assigned indices automatically based on declaration order.
  *
  * 1. Define your accounts table:
- * @usage:
+ * @code:
  *    #define MY_ACCOUNTS(X) \
  *        X(payer,          CVL_SIGNER | CVL_WRITABLE) \
  *        X(counter,        CVL_WRITABLE) \
  *        X(system_program, CVL_PROGRAM)
  *
  * 2. Generate the struct + parser:
- * @usage: CVL_DEFINE_ACCOUNTS(my_instruction, MY_ACCOUNTS)
+ * @code: CVL_DEFINE_ACCOUNTS(my_instruction, MY_ACCOUNTS)
  *
  * This produces:
- * @usage:
+ * @code:
  *    typedef struct { CvlAccountInfo *payer, *counter, *system_program; }
  *      my_instruction_accounts_t;
  *    static inline uint64_t my_instruction_parse(CvlParameters *params,

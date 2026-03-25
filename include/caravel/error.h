@@ -19,7 +19,7 @@
  * Custom errors start from this base. Pass your error number (0-4095)
  * to get a unique error code.
  *
- * @usage: return CVL_ERROR_CUSTOM(42);
+ * @code return CVL_ERROR_CUSTOM(42);
  */
 #define CVL_ERROR_CUSTOM_BASE 0x100
 #define CVL_ERROR_CUSTOM(x)   ((uint64_t)(CVL_ERROR_CUSTOM_BASE + (x)))
@@ -37,7 +37,7 @@
  * @param expr The expression to evaluate
  * @return The result of the expression
  *
- * @usage: CVL_TRY(some_function());
+ * @code CVL_TRY(some_function());
  */
 #define CVL_TRY(expr) \
     do { \
