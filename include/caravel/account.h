@@ -32,7 +32,7 @@
 #define CVL_ASSERT_SIGNER(acc) \
     do { \
         if (!(acc)->is_signer) { \
-            cvl_log_literal("Error: account not signer"); \
+            cvl_log_literal("err: account not signer"); \
             return CVL_ERROR_MISSING_REQUIRED_SIGNATURE; \
         } \
     } while (0)
@@ -40,7 +40,7 @@
 #define CVL_ASSERT_WRITABLE(acc) \
     do { \
         if (!(acc)->is_writable) { \
-            cvl_log_literal("Error: account not writable"); \
+            cvl_log_literal("err: account not writable"); \
             return CVL_ERROR_ACCOUNT_NOT_WRITABLE; \
         } \
     } while (0)
@@ -48,7 +48,7 @@
 #define CVL_ASSERT_OWNER(acc, expected_owner) \
     do { \
         if (!cvl_pubkey_equals((acc)->owner, (expected_owner))) { \
-            cvl_log_literal("Error: wrong account owner"); \
+            cvl_log_literal("err: wrong account owner"); \
             return CVL_ERROR_ACCOUNT_WRONG_OWNER; \
         } \
     } while (0)
@@ -56,7 +56,7 @@
 #define CVL_ASSERT_KEY(acc, expected_key) \
     do { \
         if (!cvl_pubkey_equals((acc)->key, (expected_key))) { \
-            cvl_log_literal("Error: wrong account key"); \
+            cvl_log_literal("err: wrong account key"); \
             return CVL_ERROR_ACCOUNT_WRONG_KEY; \
         } \
     } while (0)
@@ -64,7 +64,7 @@
 #define CVL_ASSERT_INITIALIZED(acc) \
     do { \
         if ((acc)->data_len == 0) { \
-            cvl_log_literal("Error: account not initialized"); \
+            cvl_log_literal("err: account not initialized"); \
             return CVL_ERROR_UNINITIALIZED_ACCOUNT; \
         } \
     } while (0)
@@ -72,7 +72,7 @@
 #define CVL_ASSERT_DATA_LEN(acc, min_len) \
     do { \
         if ((acc)->data_len < (min_len)) { \
-            cvl_log_literal("Error: account data too small"); \
+            cvl_log_literal("err: account data too small"); \
             return CVL_ERROR_ACCOUNT_DATA_TOO_SMALL; \
         } \
     } while (0)
@@ -105,16 +105,16 @@
 /* generate validation + assignment with auto-incrementing index */
 #define _CVL_ACCOUNT_VALIDATE(name, flags) \
     if (params->accounts_len <= _cvl_idx) { \
-        cvl_log_literal("Error: not enough accounts for " #name); \
+        cvl_log_literal("err: not enough accounts for " #name); \
         return CVL_ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
     } \
     ctx->name = &params->accounts[_cvl_idx]; \
     if (((flags) & CVL_SIGNER) && !ctx->name->is_signer) { \
-        cvl_log_literal("Error: " #name " must be signer"); \
+        cvl_log_literal("err: " #name " must be signer"); \
         return CVL_ERROR_MISSING_REQUIRED_SIGNATURE; \
     } \
     if (((flags) & CVL_WRITABLE) && !ctx->name->is_writable) { \
-        cvl_log_literal("Error: " #name " must be writable"); \
+        cvl_log_literal("err: " #name " must be writable"); \
         return CVL_ERROR_ACCOUNT_NOT_WRITABLE; \
     } \
     _cvl_idx++;

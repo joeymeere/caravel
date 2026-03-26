@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <dirent.h>
 
-#define CVL_CLI_VERSION "0.2.1"
+#define CVL_CLI_VERSION "0.2.2"
 #define CVL_MAX_PATH 1024
 #define CVL_MAX_NAME 128
 

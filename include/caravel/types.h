@@ -113,22 +113,22 @@ static const CvlPubkey CVL_CLOCK_SYSVAR_ID = {{
 }};
 
 
-/* Byte-by-byte pubkey comparison */
+/* Pubkey comparison */
 static inline bool cvl_pubkey_equals(const CvlPubkey *a, const CvlPubkey *b) {
-    const uint8_t *pa = a->bytes;
-    const uint8_t *pb = b->bytes;
-    for (int i = 0; i < 32; i++) {
-        if (pa[i] != pb[i]) return false;
-    }
-    return true;
+    const uint64_t *pa = (const uint64_t *)a->bytes;
+    const uint64_t *pb = (const uint64_t *)b->bytes;
+    return pa[0] == pb[0] && pa[1] == pb[1] && pa[2] == pb[2] && pa[3] == pb[3];
 }
 
 static inline bool cvl_pubkey_is_default(const CvlPubkey *key) {
-    const uint8_t *p = key->bytes;
-    for (int i = 0; i < 32; i++) {
-        if (p[i] != 0) return false;
-    }
-    return true;
+    const uint64_t *p = (const uint64_t *)key->bytes;
+    return p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 0;
+}
+
+static inline void cvl_copy_pubkey(void *dst, const void *src) {
+    const uint64_t *s = (const uint64_t *)src;
+    uint64_t *d = (uint64_t *)dst;
+    d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = s[3];
 }
 
 #define CVL_PUBKEY_SIZE  32
