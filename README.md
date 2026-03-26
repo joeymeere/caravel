@@ -144,6 +144,14 @@ CVL_TRY(cvl_token_transfer_signed(
 ));
 ```
 
+## Vault Benchmark
+
+| Benchmark | Caravel | Quasar |
+|-----------|---------|--------|
+| Deposit CUs | 1577 | 1576 |
+| Withdraw CUs | 353 | 411 |
+| Binary Size | 3,968 bytes | 5,848 bytes |
+
 ## CLI Reference
 
 | Command | Description |
