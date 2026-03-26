@@ -27,9 +27,14 @@ static void print_usage(void) {
         "    clean         Remove build artifacts\n"
         "    idl           Generate IDL (build/idl.json)\n"
         "\n"
+        "  Build options:\n"
+        "    --backend=<name>  solana (default), sbpf-linker\n"
+        "    --debug           Debug build with symbols\n"
+        "    --fast            Fast build (-O1)\n"
+        "\n"
         "  Options:\n"
-        "    --help, -h    Show this message\n"
-        "    --version     Show version\n"
+        "    --help, -h        Show this message\n"
+        "    --version         Show version\n"
         "\n",
         CVL_CLI_VERSION
     );
