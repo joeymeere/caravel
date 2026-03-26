@@ -45,4 +45,21 @@
         if (_cvl_err != CVL_SUCCESS) return _cvl_err; \
     } while (0)
 
+/**
+ * Immediately eject from the program with a specific code
+ *
+ * @param code The code to exit with
+ *
+ * @warning This should generally be avoided in favor of returning an error code and 
+ *          handling upstream. The primary use case is to prevent the compiler from
+ *          hoisting error-code loads into hotpaths
+ *
+ * @code CVL_EXIT(CVL_ERROR_INVALID_ARGUMENT);
+ */
+#define CVL_EXIT(code) \
+    do { \
+        __asm__ volatile("lddw r0, " #code "\nexit"); \
+        __builtin_unreachable(); \
+    } while (0)
+
 #endif /* CVL_ERROR_H */
