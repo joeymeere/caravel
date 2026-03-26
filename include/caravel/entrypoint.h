@@ -57,8 +57,16 @@ static inline uint64_t cvl_deserialize(
         uint8_t dup_marker = *ptr++;
 
         if (dup_marker != 0xFF) {
-            /* Duplicate account — points to same data as account[dup_marker] */
-            account_buf[i] = account_buf[dup_marker];
+            /* Duplicate */
+            account_buf[i].key         = account_buf[dup_marker].key;
+            account_buf[i].lamports    = account_buf[dup_marker].lamports;
+            account_buf[i].data_len    = account_buf[dup_marker].data_len;
+            account_buf[i].data        = account_buf[dup_marker].data;
+            account_buf[i].owner       = account_buf[dup_marker].owner;
+            account_buf[i].rent_epoch  = account_buf[dup_marker].rent_epoch;
+            account_buf[i].is_signer   = account_buf[dup_marker].is_signer;
+            account_buf[i].is_writable = account_buf[dup_marker].is_writable;
+            account_buf[i].executable  = account_buf[dup_marker].executable;
             /* Skip padding to align to 8 bytes */
             ptr += 7;
         } else {
@@ -139,7 +147,15 @@ static inline uint64_t cvl_deserialize(
         uint8_t dup_marker = *ptr++;
 
         if (dup_marker != 0xFF) {
-            account_buf[i] = account_buf[dup_marker];
+            account_buf[i].key         = account_buf[dup_marker].key;
+            account_buf[i].lamports    = account_buf[dup_marker].lamports;
+            account_buf[i].data_len    = account_buf[dup_marker].data_len;
+            account_buf[i].data        = account_buf[dup_marker].data;
+            account_buf[i].owner       = account_buf[dup_marker].owner;
+            account_buf[i].rent_epoch  = account_buf[dup_marker].rent_epoch;
+            account_buf[i].is_signer   = account_buf[dup_marker].is_signer;
+            account_buf[i].is_writable = account_buf[dup_marker].is_writable;
+            account_buf[i].executable  = account_buf[dup_marker].executable;
             ptr += 7;
         } else {
             account_buf[i].is_signer   = (*ptr++) != 0;
@@ -235,6 +251,22 @@ static inline uint64_t cvl_deserialize(
 #define CVL_LAZY_ENTRYPOINT(handler) \
     uint64_t entrypoint(const uint8_t *input) { \
         return handler(input); \
+    }
+
+/**
+ * Similar to `CVL_LAZY_ENTRYPOINT`, but requires no return value.
+ * This is useful for optimizing codegen by avoiding an extra load
+ *
+ * @warning Any return values from your handler will be ignored.
+ *          Using this macro implicitly requires you to use CVL_EXIT for any error conditions.
+ *
+ * @code
+ *   void process(const uint8_t *input) { ... }
+ *   CVL_LAZY_ENTRYPOINT_NORETURN(process);
+ */
+ #define CVL_RAW_ENTRYPOINT(handler) \
+    void entrypoint(const uint8_t *input) { \
+        handler(input); \
     }
 
 #endif /* CVL_ENTRYPOINT_H */
