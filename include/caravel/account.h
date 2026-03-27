@@ -102,12 +102,11 @@
 #define _CVL_ACCOUNT_FIELD(name, flags) \
     CvlAccountInfo *name;
 
+/* count accounts in a table at compile time */
+#define _CVL_ACCOUNT_COUNT(name, flags) + 1
+
 /* generate validation + assignment with auto-incrementing index */
 #define _CVL_ACCOUNT_VALIDATE(name, flags) \
-    if (params->accounts_len <= _cvl_idx) { \
-        cvl_log_literal("err: not enough accounts for " #name); \
-        return CVL_ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
-    } \
     ctx->name = &params->accounts[_cvl_idx]; \
     if (((flags) & CVL_SIGNER) && !ctx->name->is_signer) { \
         cvl_log_literal("err: " #name " must be signer"); \
@@ -131,6 +130,11 @@
         CvlParameters *params, \
         prefix##_accounts_t *ctx \
     ) { \
+        enum { _cvl_expected = 0 accounts_table(_CVL_ACCOUNT_COUNT) }; \
+        if (params->accounts_len < _cvl_expected) { \
+            cvl_log_literal("err: not enough accounts"); \
+            return CVL_ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
+        } \
         uint64_t _cvl_idx = 0; \
         accounts_table(_CVL_ACCOUNT_VALIDATE) \
         (void)_cvl_idx; \

@@ -71,9 +71,9 @@ static inline uint64_t cvl_deserialize(
             ptr += 7;
         } else {
             /* is_signer, is_writable, executable */
-            account_buf[i].is_signer   = (*ptr++) != 0;
-            account_buf[i].is_writable = (*ptr++) != 0;
-            account_buf[i].executable  = (*ptr++) != 0;
+            account_buf[i].is_signer   = *ptr++;
+            account_buf[i].is_writable = *ptr++;
+            account_buf[i].executable  = *ptr++;
 
             /* 4 bytes padding */
             ptr += 4;
@@ -98,9 +98,7 @@ static inline uint64_t cvl_deserialize(
             ptr += data_len;
 
             /* Padding to 8-byte alignment */
-            uint64_t padding = (8 - (data_len % 8)) % 8;
-            /* Also skip the additional 10240 bytes max realloc padding */
-            ptr += padding + 10240;
+            ptr += ((-data_len) & 7) + 10240;
 
             /* rent_epoch */
             account_buf[i].rent_epoch = *(uint64_t *)ptr;
@@ -158,9 +156,9 @@ static inline uint64_t cvl_deserialize(
             account_buf[i].executable  = account_buf[dup_marker].executable;
             ptr += 7;
         } else {
-            account_buf[i].is_signer   = (*ptr++) != 0;
-            account_buf[i].is_writable = (*ptr++) != 0;
-            account_buf[i].executable  = (*ptr++) != 0;
+            account_buf[i].is_signer   = *ptr++;
+            account_buf[i].is_writable = *ptr++;
+            account_buf[i].executable  = *ptr++;
             ptr += 4;
 
             account_buf[i].key = (CvlPubkey *)ptr;
@@ -178,8 +176,7 @@ static inline uint64_t cvl_deserialize(
             account_buf[i].data = (uint8_t *)ptr;
             ptr += data_len;
 
-            uint64_t padding = (8 - (data_len % 8)) % 8;
-            ptr += padding + 10240;
+            ptr += ((-data_len) & 7) + 10240;
 
             account_buf[i].rent_epoch = *(uint64_t *)ptr;
             ptr += 8;
