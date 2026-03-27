@@ -61,7 +61,7 @@ static uint64_t handle_deposit(CvlParameters *params) {
         state->bump = state_bump;
     }
 
-    if (!cvl_pubkey_equals(ctx.vault_state->key, &state_expected)) {
+    if (!cvl_pubkey_eq(ctx.vault_state->key, &state_expected)) {
         cvl_log_literal("Error: vault_state PDA mismatch");
         return CVL_ERROR_INVALID_PDA;
     }
@@ -99,11 +99,11 @@ static uint64_t handle_withdraw(CvlParameters *params) {
     uint64_t amount = *(uint64_t *)(params->data + 1);
 
     TokenVaultState *state = CVL_ACCOUNT_STATE(ctx.vault_state, TokenVaultState);
-    if (!cvl_pubkey_equals(&state->authority, ctx.authority->key)) {
+    if (!cvl_pubkey_eq(&state->authority, ctx.authority->key)) {
         cvl_log_literal("Error: authority mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }
-    if (!cvl_pubkey_equals(&state->mint, ctx.mint->key)) {
+    if (!cvl_pubkey_eq(&state->mint, ctx.mint->key)) {
         cvl_log_literal("Error: mint mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }

@@ -11,6 +11,7 @@
 #include "types.h"
 #include "error.h"
 #include "cpi.h"
+#include "util.h"
 
 #define CVL_SYSTEM_IX_CREATE_ACCOUNT  0
 #define CVL_SYSTEM_IX_ASSIGN          1
@@ -129,7 +130,7 @@ static inline uint64_t cvl_system_create_account(
     *(uint32_t *)ix_data = CVL_SYSTEM_IX_CREATE_ACCOUNT;
     *(uint64_t *)(ix_data + 4) = lamports;
     *(uint64_t *)(ix_data + 12) = space;
-    cvl_copy_pubkey(ix_data + 20, owner->bytes);
+    cvl_pubkey_cpy(ix_data + 20, owner->bytes);
 
     CvlAccountMeta metas[2] = {
         cvl_meta_writable_signer(payer->key),
@@ -178,7 +179,7 @@ static inline uint64_t cvl_system_create_account_signed(
     *(uint32_t *)ix_data = CVL_SYSTEM_IX_CREATE_ACCOUNT;
     *(uint64_t *)(ix_data + 4) = lamports;
     *(uint64_t *)(ix_data + 12) = space;
-    cvl_copy_pubkey(ix_data + 20, owner->bytes);
+    cvl_pubkey_cpy(ix_data + 20, owner->bytes);
 
     CvlAccountMeta metas[2] = {
         cvl_meta_writable_signer(payer->key),
@@ -252,7 +253,7 @@ static inline uint64_t cvl_system_assign(
 ) {
     uint8_t ix_data[36];
     *(uint32_t *)ix_data = CVL_SYSTEM_IX_ASSIGN;
-    cvl_copy_pubkey(ix_data + 4, owner->bytes);
+    cvl_pubkey_cpy(ix_data + 4, owner->bytes);
 
     CvlAccountMeta metas[1] = {
         cvl_meta_writable_signer(account->key),
@@ -282,7 +283,7 @@ static inline uint64_t cvl_system_assign_signed(
 ) {
     uint8_t ix_data[36];
     *(uint32_t *)ix_data = CVL_SYSTEM_IX_ASSIGN;
-    cvl_copy_pubkey(ix_data + 4, owner->bytes);
+    cvl_pubkey_cpy(ix_data + 4, owner->bytes);
 
     CvlAccountMeta metas[1] = {
         cvl_meta_writable_signer(account->key),

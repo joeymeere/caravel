@@ -45,7 +45,7 @@ static uint64_t handle_increment(CvlParameters *params) {
 
     CounterState *state = CVL_ACCOUNT_STATE(ctx.counter, CounterState);
 
-    if (!cvl_pubkey_equals(&state->authority, ctx.authority->key)) {
+    if (!cvl_pubkey_eq(&state->authority, ctx.authority->key)) {
         cvl_log_literal("Error: authority mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }
@@ -68,7 +68,7 @@ static uint64_t handle_decrement(CvlParameters *params) {
 
     CounterState *state = CVL_ACCOUNT_STATE(ctx.counter, CounterState);
 
-    if (!cvl_pubkey_equals(&state->authority, ctx.authority->key)) {
+    if (!cvl_pubkey_eq(&state->authority, ctx.authority->key)) {
         cvl_log_literal("Error: authority mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }

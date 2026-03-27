@@ -24,13 +24,7 @@
  */
 
 #include "types.h"
-
-#define CVL_READ_U8(ptr)  (*(ptr)++)
-#define CVL_READ_U64(ptr) ({ \
-    uint64_t _v = *(uint64_t *)(ptr); \
-    (ptr) += 8; \
-    _v; \
-})
+#include "util.h"
 
 /**
  * Deserialize the raw input buffer into CvlParameters - account_buf must be provided by the caller

@@ -159,11 +159,11 @@ static inline void cvl_derive_address(
         uint64_t _cvl_pda_err = cvl_find_program_address( \
             (seeds), (seeds_len), (program_id), &_cvl_expected, (bump_out)); \
         if (_cvl_pda_err) { \
-            cvl_log_literal("Error: PDA derivation failed"); \
+            cvl_log_literal("err: PDA derivation failed"); \
             return CVL_ERROR_INVALID_PDA; \
         } \
-        if (!cvl_pubkey_equals((acc)->key, &_cvl_expected)) { \
-            cvl_log_literal("Error: account key does not match PDA"); \
+        if (!cvl_pubkey_eq((acc)->key, &_cvl_expected)) { \
+            cvl_log_literal("err: account key does not match PDA"); \
             return CVL_ERROR_INVALID_PDA; \
         } \
     } while (0)
