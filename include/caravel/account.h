@@ -102,7 +102,6 @@
 #define _CVL_ACCOUNT_FIELD(name, flags) \
     CvlAccountInfo *name;
 
-/* count accounts in a table at compile time */
 #define _CVL_ACCOUNT_COUNT(name, flags) + 1
 
 /* generate validation + assignment with auto-incrementing index */
