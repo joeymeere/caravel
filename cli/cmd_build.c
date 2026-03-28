@@ -326,6 +326,7 @@ int cmd_build(int argc, char **argv) {
             "%s --cpu v2 %s "
             "--cpu-features +allows-misaligned-mem-access "
             "--disable-expand-memcpy-in-order "
+            "-O 1 "
             "--llvm-args=-bpf-stack-size=4096 "
             "--llvm-args=-inline-threshold=10000 "
             "-o %s/program.so %s",
