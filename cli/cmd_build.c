@@ -2,9 +2,9 @@
 #include "config.h"
 
 typedef enum {
-    BACKEND_PLATFORM_TOOLS,
-    BACKEND_SBPF_LINKER,
-} BuildBackend;
+    TOOLCHAIN_PLATFORM_TOOLS,
+    TOOLCHAIN_UPSTREAM,
+} Toolchain;
 
 static int collect_sources(const char *base, const char *rel,
                            char out[][CVL_MAX_PATH], int max, int n) {
@@ -167,7 +167,7 @@ static int compile_platform_tools(const char *clang, const char *opt_level,
     return rc;
 }
 
-static int compile_sbpf_linker(const char *clang, const char *opt_level,
+static int compile_upstream(const char *clang, const char *opt_level,
                                const char *debug_flags, const char *inc,
                                const char *src_dir, const char *source,
                                const char *build_dir, char *bc_out,
@@ -243,7 +243,7 @@ static int link_platform_tools(const char *lld, const char *inc,
     return cvl_run_command(cmd);
 }
 
-static int link_sbpf_linker(const char *linker, const char *build_dir,
+static int link_upstream(const char *linker, const char *build_dir,
                             char objs[][CVL_MAX_PATH], int nobj,
                             char exports[][CVL_MAX_NAME], int nexports) {
     char obj_list[CVL_MAX_PATH * 64] = "";
@@ -277,7 +277,7 @@ int cmd_build(int argc, char **argv) {
     const char *opt_level = "-Oz";
     const char *debug_flags = "";
     const char *mode_label = "release";
-    BuildBackend backend = BACKEND_PLATFORM_TOOLS;
+    Toolchain toolchain = TOOLCHAIN_PLATFORM_TOOLS;
 
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) {
@@ -288,14 +288,14 @@ int cmd_build(int argc, char **argv) {
             opt_level = "-O1";
             debug_flags = "";
             mode_label = "fast";
-        } else if (strncmp(argv[i], "--backend=", 10) == 0) {
-            const char *name = argv[i] + 10;
+        } else if (strncmp(argv[i], "--toolchain=", 12) == 0) {
+            const char *name = argv[i] + 12;
             if (strcmp(name, "platform-tools") == 0)
-                backend = BACKEND_PLATFORM_TOOLS;
-            else if (strcmp(name, "sbpf-linker") == 0)
-                backend = BACKEND_SBPF_LINKER;
+                toolchain = TOOLCHAIN_PLATFORM_TOOLS;
+            else if (strcmp(name, "upstream") == 0)
+                toolchain = TOOLCHAIN_UPSTREAM;
             else {
-                fprintf(stderr, "err: unknown backend '%s'\n", name);
+                fprintf(stderr, "err: unknown toolchain '%s'\n", name);
                 return 1;
             }
         }
@@ -307,10 +307,10 @@ int cmd_build(int argc, char **argv) {
         return 1;
     }
 
-    const char *backend_label = (backend == BACKEND_SBPF_LINKER)
-        ? "sbpf-linker" : "platform-tools";
+    const char *toolchain_label = (toolchain == TOOLCHAIN_UPSTREAM)
+        ? "upstream" : "platform-tools";
     printf("\n  Building %s v%s (%s, %s)\n\n",
-        cfg.name, cfg.version, mode_label, backend_label);
+        cfg.name, cfg.version, mode_label, toolchain_label);
 
     cvl_mkdir_p(cfg.build_dir);
 
@@ -328,7 +328,7 @@ int cmd_build(int argc, char **argv) {
     const char *lld = NULL;
     const char *linker = NULL;
 
-    if (backend == BACKEND_SBPF_LINKER) {
+    if (toolchain == TOOLCHAIN_UPSTREAM) {
         clang = getenv("CVL_CLANG");
         if (!clang) clang = "clang";
         linker = getenv("CVL_SBPF_LINKER");
@@ -347,8 +347,8 @@ int cmd_build(int argc, char **argv) {
 
     for (int i = 0; i < nsrc; i++) {
         int rc;
-        if (backend == BACKEND_SBPF_LINKER)
-            rc = compile_sbpf_linker(clang, opt_level, debug_flags, inc,
+        if (toolchain == TOOLCHAIN_UPSTREAM)
+            rc = compile_upstream(clang, opt_level, debug_flags, inc,
                     cfg.src_dir, sources[i], cfg.build_dir,
                     obj_files[nobj], exports, &nexports);
         else
@@ -362,8 +362,8 @@ int cmd_build(int argc, char **argv) {
     printf("\n  [LD] %s/program.so\n", cfg.build_dir);
 
     int rc;
-    if (backend == BACKEND_SBPF_LINKER)
-        rc = link_sbpf_linker(linker, cfg.build_dir,
+    if (toolchain == TOOLCHAIN_UPSTREAM)
+        rc = link_upstream(linker, cfg.build_dir,
                 obj_files, nobj, exports, nexports);
     else
         rc = link_platform_tools(lld, inc, cfg.build_dir, obj_files, nobj);

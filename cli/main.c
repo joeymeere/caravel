@@ -28,7 +28,7 @@ static void print_usage(void) {
         "    idl           Generate IDL (build/idl.json)\n"
         "\n"
         "  Build options:\n"
-        "    --backend=<name>  platform-tools (default), sbpf-linker\n"
+        "    --toolchain=<name>  platform-tools (default), upstream\n"
         "    --debug           Debug build with symbols\n"
         "    --fast            Fast build (-O1)\n"
         "\n"
