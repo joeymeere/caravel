@@ -13,32 +13,6 @@ typedef signed short       int16_t;
 typedef signed int         int32_t;
 typedef signed long long   int64_t;
 
-/**
- * Stack-allocated growable array
- *
- * @code
- * CvlVec(uint64_t, 10) prices = CVL_VEC_INIT;
- * cvl_vec_push(&prices, 42);
- * cvl_vec_push(&prices, 100);
- * uint64_t last = cvl_vec_pop(&prices);
- * uint64_t first = prices.data[0];
- */
- #define CvlVec(T, cap) struct { uint32_t len; T data[cap]; }
- #define CVL_VEC_INIT { .len = 0 }
-
- #define cvl_vec_cap(v) \
-     (sizeof((v)->data) / sizeof((v)->data[0]))
- 
- #define cvl_vec_len(v)  ((v)->len)
- #define cvl_vec_full(v) ((v)->len >= cvl_vec_cap(v))
- #define cvl_vec_clear(v) ((v)->len = 0)
-
- #define cvl_vec_push(v, val) \
-     ((v)->data[(v)->len++] = (val))
- 
- #define cvl_vec_pop(v) \
-     ((v)->data[--(v)->len])
-
 typedef struct {
     uint8_t bytes[32];
 } CvlPubkey;
@@ -112,24 +86,10 @@ static const CvlPubkey CVL_CLOCK_SYSVAR_ID = {{
     139, 94, 184, 163, 155, 75, 109, 92, 115, 85, 91, 33, 0, 0, 0, 0
 }};
 
-
-/* Pubkey comparison */
-static inline bool cvl_pubkey_equals(const CvlPubkey *a, const CvlPubkey *b) {
-    const uint64_t *pa = (const uint64_t *)a->bytes;
-    const uint64_t *pb = (const uint64_t *)b->bytes;
-    return pa[0] == pb[0] && pa[1] == pb[1] && pa[2] == pb[2] && pa[3] == pb[3];
-}
-
-static inline bool cvl_pubkey_is_default(const CvlPubkey *key) {
-    const uint64_t *p = (const uint64_t *)key->bytes;
-    return p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 0;
-}
-
-static inline void cvl_copy_pubkey(void *dst, const void *src) {
-    const uint64_t *s = (const uint64_t *)src;
-    uint64_t *d = (uint64_t *)dst;
-    d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = s[3];
-}
+static const CvlPubkey CVL_INSTRUCTIONS_SYSVAR_ID = {{
+    6, 167, 213, 23, 24, 123, 209, 102, 53, 218, 212, 4, 85, 253, 194, 192,
+    193, 36, 198, 143, 33, 86, 117, 165, 219, 186, 203, 95, 8, 0, 0, 0
+}};
 
 #define CVL_PUBKEY_SIZE  32
 #ifndef CVL_MAX_ACCOUNTS

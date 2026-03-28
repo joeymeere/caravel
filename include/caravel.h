@@ -19,6 +19,7 @@
 #include "caravel/log.h"
 
 #include "caravel/math.h"
+#include "caravel/util.h"
 
 #include "caravel/entrypoint.h"
 #include "caravel/instruction.h"

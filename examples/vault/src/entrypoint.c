@@ -33,7 +33,7 @@ static uint64_t handle_deposit(CvlParameters *params) {
     };
     CvlPubkey expected;
     cvl_derive_address(seeds, 3, params->program_id, &expected);
-    if (CVL_UNLIKELY(!cvl_pubkey_equals(ctx.vault->key, &expected))) {
+    if (CVL_UNLIKELY(!cvl_pubkey_eq(ctx.vault->key, &expected))) {
         return CVL_ERROR_INVALID_PDA;
     }
 
@@ -71,7 +71,7 @@ static uint64_t handle_withdraw(CvlParameters *params) {
     };
     CvlPubkey expected;
     cvl_derive_address(seeds, 3, params->program_id, &expected);
-    if (CVL_UNLIKELY(!cvl_pubkey_equals(ctx.vault->key, &expected))) {
+    if (CVL_UNLIKELY(!cvl_pubkey_eq(ctx.vault->key, &expected))) {
         return CVL_ERROR_INVALID_PDA;
     }
 

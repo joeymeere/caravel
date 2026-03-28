@@ -47,7 +47,7 @@
 
 #define CVL_ASSERT_OWNER(acc, expected_owner) \
     do { \
-        if (!cvl_pubkey_equals((acc)->owner, (expected_owner))) { \
+        if (!cvl_pubkey_eq((acc)->owner, (expected_owner))) { \
             cvl_log_literal("err: wrong account owner"); \
             return CVL_ERROR_ACCOUNT_WRONG_OWNER; \
         } \
@@ -55,7 +55,7 @@
 
 #define CVL_ASSERT_KEY(acc, expected_key) \
     do { \
-        if (!cvl_pubkey_equals((acc)->key, (expected_key))) { \
+        if (!cvl_pubkey_eq((acc)->key, (expected_key))) { \
             cvl_log_literal("err: wrong account key"); \
             return CVL_ERROR_ACCOUNT_WRONG_KEY; \
         } \

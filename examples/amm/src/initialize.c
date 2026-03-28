@@ -28,7 +28,7 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
     cvl_find_program_address(derive_seeds, 3, params->program_id,
                              &expected, &bump);
 
-    if (!cvl_pubkey_equals(ctx.pool_state->key, &expected)) {
+    if (!cvl_pubkey_eq(ctx.pool_state->key, &expected)) {
         cvl_log_literal("Error: pool_state PDA mismatch");
         return CVL_ERROR_INVALID_PDA;
     }
@@ -41,27 +41,27 @@ uint64_t handle_initialize_pool(CvlParameters *params) {
     }
 
     CvlTokenAccount *va = CVL_TOKEN_ACCOUNT(ctx.vault_a);
-    if (!cvl_pubkey_equals(&va->owner, &expected)) {
+    if (!cvl_pubkey_eq(&va->owner, &expected)) {
         cvl_log_literal("Error: vault_a owner mismatch");
         return AMM_ERROR_INVALID_VAULT_OWNER;
     }
-    if (!cvl_pubkey_equals(&va->mint, ctx.mint_a->key)) {
+    if (!cvl_pubkey_eq(&va->mint, ctx.mint_a->key)) {
         cvl_log_literal("Error: vault_a mint mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }
 
     CvlTokenAccount *vb = CVL_TOKEN_ACCOUNT(ctx.vault_b);
-    if (!cvl_pubkey_equals(&vb->owner, &expected)) {
+    if (!cvl_pubkey_eq(&vb->owner, &expected)) {
         cvl_log_literal("Error: vault_b owner mismatch");
         return AMM_ERROR_INVALID_VAULT_OWNER;
     }
-    if (!cvl_pubkey_equals(&vb->mint, ctx.mint_b->key)) {
+    if (!cvl_pubkey_eq(&vb->mint, ctx.mint_b->key)) {
         cvl_log_literal("Error: vault_b mint mismatch");
         return CVL_ERROR_INVALID_ARGUMENT;
     }
 
     CvlMintAccount *lp = CVL_MINT_ACCOUNT(ctx.lp_mint);
-    if (!cvl_pubkey_equals(&lp->mint_authority, &expected)) {
+    if (!cvl_pubkey_eq(&lp->mint_authority, &expected)) {
         cvl_log_literal("Error: LP mint authority mismatch");
         return AMM_ERROR_INVALID_LP_AUTHORITY;
     }
