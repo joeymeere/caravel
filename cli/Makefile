@@ -31,4 +31,9 @@ clean:
 
 install: $(TARGET)
 	cp $(TARGET) /usr/local/bin/$(TARGET)
-	@echo "Installed to /usr/local/bin/$(TARGET)"
+	mkdir -p $(HOME)/.caravel/include/caravel
+	cp ../include/caravel.h $(HOME)/.caravel/include/
+	cp ../include/bpf.ld $(HOME)/.caravel/include/
+	cp ../include/caravel/*.h $(HOME)/.caravel/include/caravel/
+	@echo "Installed CLI to /usr/local/bin/$(TARGET)"
+	@echo "Installed headers to ~/.caravel/include/"
