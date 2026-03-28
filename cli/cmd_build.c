@@ -331,15 +331,48 @@ int cmd_build(int argc, char **argv) {
     if (toolchain == TOOLCHAIN_UPSTREAM) {
         clang = getenv("CVL_CLANG");
         if (!clang) clang = "clang";
-        linker = getenv("CVL_SBPF_LINKER");
-        if (!linker) linker = "sbpf-linker";
+        const char *env_linker = getenv("CVL_SBPF_LINKER");
+        linker = env_linker ? env_linker : "sbpf-linker";
+
+        if (!cvl_has_command(linker)) {
+            if (env_linker) {
+                fprintf(stderr,
+                    "err: linker '%s' (CVL_SBPF_LINKER) not found\n"
+                    "  Install it and ensure it is on PATH, or unset CVL_SBPF_LINKER "
+                    "to use the default sbpf-linker.\n",
+                    linker);
+                return 1;
+            }
+            printf("  sbpf-linker not found — installing via cargo...\n\n");
+            if (cvl_run_command("cargo install sbpf-linker") != 0) {
+                fprintf(stderr, "\nerr: failed to install sbpf-linker\n");
+                return 1;
+            }
+            printf("\n");
+        }
+        if (!cvl_has_command(clang)) {
+            fprintf(stderr, "err: '%s' not found\n", clang);
+            fprintf(stderr, CVL_INSTALL_LLVM_HINT);
+            return 1;
+        }
+        if (!cvl_has_command("llvm-as")) {
+            fprintf(stderr, "err: llvm-as not found\n");
+            fprintf(stderr, CVL_INSTALL_LLVM_HINT);
+            return 1;
+        }
     } else {
         clang = find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
         lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
     }
 
-    const char *inc = getenv("CARAVEL_INCLUDE");
-    if (!inc) inc = "../../include";
+    char inc_buf[CVL_MAX_PATH];
+    const char *inc = cvl_resolve_include(inc_buf, sizeof(inc_buf));
+    if (!inc) {
+        fprintf(stderr,
+            "err: caravel headers not found\n"
+            "  Run `make install` in the cli/ directory, or set CARAVEL_INCLUDE\n");
+        return 1;
+    }
 
     char obj_files[128][CVL_MAX_PATH];
     char exports[64][CVL_MAX_NAME];
