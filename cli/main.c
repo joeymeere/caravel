@@ -15,7 +15,7 @@
 static void print_usage(void) {
     printf(
         "\n"
-        "  Caravel v%s — Solana C Framework\n"
+        "  Caravel v%s\n"
         "\n"
         "  Usage: caravel <command> [options]\n"
         "\n"
@@ -28,7 +28,7 @@ static void print_usage(void) {
         "    idl           Generate IDL (build/idl.json)\n"
         "\n"
         "  Build options:\n"
-        "    --backend=<name>  solana (default), sbpf-linker\n"
+        "    --backend=<name>  platform-tools (default), sbpf-linker\n"
         "    --debug           Debug build with symbols\n"
         "    --fast            Fast build (-O1)\n"
         "\n"
