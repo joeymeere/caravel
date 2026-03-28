@@ -108,45 +108,35 @@ static const char *find_tool(const char *env_var, const char *tool_name,
     return tool_name; /* fall back to PATH */
 }
 
-/* Find llc from the sbpf-linker gallery LLVM build. */
-static const char *find_gallery_llc(char *buf, size_t bufsz) {
-    const char *val = getenv("CVL_LLC");
-    if (val) return val;
-
-    const char *home = getenv("HOME");
-    if (!home) return "llc";
-
-#ifdef __APPLE__
-    const char *cache_base = "Library/Caches";
-#else
-    const char *cache_base = ".cache";
-#endif
-
-    char cache_dir[CVL_MAX_PATH];
-    snprintf(cache_dir, sizeof(cache_dir), "%s/%s", home, cache_base);
-
-    DIR *dp = opendir(cache_dir);
-    if (!dp) return "llc";
-
-    char best[CVL_MAX_PATH] = "";
-    struct dirent *ent;
-    while ((ent = readdir(dp)) != NULL) {
-        if (strncmp(ent->d_name, "sbpf-linker-upstream-gallery-", 29) != 0)
-            continue;
-        char candidate[CVL_MAX_PATH];
-        snprintf(candidate, sizeof(candidate),
-            "%s/%s/llvm-install/bin/llc", cache_dir, ent->d_name);
-        if (cvl_file_exists(candidate))
-            strncpy(best, candidate, sizeof(best) - 1);
-    }
-    closedir(dp);
-
-    if (best[0]) {
-        snprintf(buf, bufsz, "%s", best);
-        return buf;
+/* Scan LLVM IR for external sol_* declarations and collect their names
+ * so they can be exported from sbpf-linker (preventing LTO internalization). */
+static int collect_syscalls(const char *ll_path,
+                            char out[][CVL_MAX_NAME], int max) {
+    FILE *f = fopen(ll_path, "r");
+    if (!f) {
+        fprintf(stderr, "err: cannot open %s\n", ll_path);
+        return -1;
     }
 
-    return "llc";
+    int n = 0;
+    char line[4096];
+    while (fgets(line, sizeof(line), f) && n < max) {
+        if (strncmp(line, "declare", 7) != 0) continue;
+        char *at = strstr(line, "@sol_");
+        if (!at) continue;
+        at++; /* skip @ */
+        char *end = at;
+        while (*end && *end != '(' && *end != ' ') end++;
+        size_t len = (size_t)(end - at);
+        if (len > 0 && len < CVL_MAX_NAME) {
+            memcpy(out[n], at, len);
+            out[n][len] = '\0';
+            n++;
+        }
+    }
+
+    fclose(f);
+    return n;
 }
 
 int cmd_build(int argc, char **argv) {
@@ -201,19 +191,20 @@ int cmd_build(int argc, char **argv) {
 
     printf("  Found %d source file(s)\n\n", nsrc);
 
-    char clang_buf[CVL_MAX_PATH], lld_buf[CVL_MAX_PATH], llc_buf[CVL_MAX_PATH];
+    char clang_buf[CVL_MAX_PATH], lld_buf[CVL_MAX_PATH];
     const char *clang;
-    const char *lld;
-    const char *llc = NULL;
+    const char *lld = NULL;
+    const char *linker = NULL;
 
     if (backend == BACKEND_SBPF_LINKER) {
         clang = getenv("CVL_CLANG");
         if (!clang) clang = "clang";
-        llc = find_gallery_llc(llc_buf, sizeof(llc_buf));
+        linker = getenv("CVL_SBPF_LINKER");
+        if (!linker) linker = "sbpf-linker";
     } else {
         clang = find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
+        lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
     }
-    lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
 
     const char *inc = getenv("CARAVEL_INCLUDE");
     if (!inc) inc = "../../include";
@@ -223,23 +214,26 @@ int cmd_build(int argc, char **argv) {
     char obj_files[128][CVL_MAX_PATH];
     int nobj = 0;
 
+    /* syscall exports for sbpf-linker (populated during compilation) */
+    char exports[64][CVL_MAX_NAME];
+    int nexports = 0;
+
     for (int i = 0; i < nsrc; i++) {
         char base[CVL_MAX_PATH];
         strncpy(base, sources[i], CVL_MAX_PATH);
         size_t len = strlen(base);
         base[len - 2] = '\0';
 
-        snprintf(obj_files[nobj], CVL_MAX_PATH, "%s/%s.o", cfg.build_dir, base);
-
         char obj_dir[CVL_MAX_PATH];
-        strncpy(obj_dir, obj_files[nobj], CVL_MAX_PATH);
-        char *last_slash = strrchr(obj_dir, '/');
-        if (last_slash) {
-            *last_slash = '\0';
-            cvl_mkdir_p(obj_dir);
-        }
 
         if (backend == BACKEND_SBPF_LINKER) {
+            snprintf(obj_files[nobj], CVL_MAX_PATH, "%s/%s.bc",
+                cfg.build_dir, base);
+
+            strncpy(obj_dir, obj_files[nobj], CVL_MAX_PATH);
+            char *last_slash = strrchr(obj_dir, '/');
+            if (last_slash) { *last_slash = '\0'; cvl_mkdir_p(obj_dir); }
+
             /* .c → .ll  (LLVM IR via upstream clang) */
             char ll_path[CVL_MAX_PATH];
             snprintf(ll_path, sizeof(ll_path), "%s/%s.ll", cfg.build_dir, base);
@@ -258,27 +252,40 @@ int cmd_build(int argc, char **argv) {
                 return 1;
             }
 
-            /* .ll → .o  (gallery llc — SBF-compatible codegen, no JMP32) */
-            snprintf(cmd, sizeof(cmd),
-                "%s -march=bpfel -mcpu=generic -filetype=obj "
-                "-bpf-stack-size=4096 -o %s %s",
-                llc, obj_files[nobj], ll_path);
+            /* collect syscall names from IR for export */
+            char syscalls[64][CVL_MAX_NAME];
+            int nsys = collect_syscalls(ll_path, syscalls, 64);
+            if (nsys < 0) return 1;
 
-            printf("  [LLC] %s\n", obj_files[nobj]);
+            /* merge into global export list (deduplicated at link step) */
+            for (int s = 0; s < nsys && nexports < 64; s++) {
+                int dup = 0;
+                for (int e = 0; e < nexports; e++) {
+                    if (strcmp(exports[e], syscalls[s]) == 0) { dup = 1; break; }
+                }
+                if (!dup) {
+                    strncpy(exports[nexports], syscalls[s], CVL_MAX_NAME - 1);
+                    nexports++;
+                }
+            }
+
+            /* .ll → .bc */
+            snprintf(cmd, sizeof(cmd), "llvm-as %s -o %s",
+                ll_path, obj_files[nobj]);
             rc = cvl_run_command(cmd);
             if (rc != 0) {
-                fprintf(stderr, "\nerr: llc failed for %s (exit %d)\n",
+                fprintf(stderr, "\nerr: llvm-as failed for %s (exit %d)\n",
                         ll_path, rc);
                 return 1;
             }
-
-            /* fix merge-string section so ld.lld preserves all strings */
-            snprintf(cmd, sizeof(cmd),
-                "llvm-objcopy --set-section-flags "
-                ".rodata.str1.1=alloc,readonly %s",
-                obj_files[nobj]);
-            cvl_run_command(cmd);
         } else {
+            snprintf(obj_files[nobj], CVL_MAX_PATH, "%s/%s.o",
+                cfg.build_dir, base);
+
+            strncpy(obj_dir, obj_files[nobj], CVL_MAX_PATH);
+            char *last_slash = strrchr(obj_dir, '/');
+            if (last_slash) { *last_slash = '\0'; cvl_mkdir_p(obj_dir); }
+
             /* .c → .o  (Solana clang — SBF target) */
             snprintf(cmd, sizeof(cmd),
                 "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
@@ -297,7 +304,7 @@ int cmd_build(int argc, char **argv) {
         nobj++;
     }
 
-    /* link .o files → program.so */
+    /* link → program.so */
     printf("\n  [LD] %s/program.so\n", cfg.build_dir);
 
     char obj_list[CVL_MAX_PATH * 64] = "";
@@ -306,27 +313,33 @@ int cmd_build(int argc, char **argv) {
         if (i < nobj - 1) strcat(obj_list, " ");
     }
 
-    snprintf(cmd, sizeof(cmd),
-        "%s -z notext -shared --Bdynamic --gc-sections "
-        "%s/bpf.ld --entry entrypoint -o %s/program.so %s",
-        lld, inc, cfg.build_dir, obj_list);
-    int rc = cvl_run_command(cmd);
+    int rc;
+    if (backend == BACKEND_SBPF_LINKER) {
+        /* build --export flags: entrypoint + all discovered syscalls */
+        char export_args[CVL_MAX_PATH * 2] = "";
+        strcat(export_args, "--export entrypoint");
+        for (int i = 0; i < nexports; i++) {
+            strcat(export_args, " --export ");
+            strcat(export_args, exports[i]);
+        }
+        snprintf(cmd, sizeof(cmd),
+            "%s --cpu v2 %s "
+            "--cpu-features +allows-misaligned-mem-access "
+            "--disable-expand-memcpy-in-order "
+            "--llvm-args=-bpf-stack-size=4096 "
+            "--llvm-args=-inline-threshold=10000 "
+            "-o %s/program.so %s",
+            linker, export_args, cfg.build_dir, obj_list);
+    } else {
+        snprintf(cmd, sizeof(cmd),
+            "%s -z notext -shared --Bdynamic --gc-sections "
+            "%s/bpf.ld --entry entrypoint -o %s/program.so %s",
+            lld, inc, cfg.build_dir, obj_list);
+    }
+    rc = cvl_run_command(cmd);
     if (rc != 0) {
         fprintf(stderr, "\nerr: linking failed (exit %d)\n", rc);
         return 1;
-    }
-
-    /* gallery llc emits EM_BPF (0xF7); patch to SBF (0x0107) */
-    if (backend == BACKEND_SBPF_LINKER) {
-        char so_path[CVL_MAX_PATH];
-        snprintf(so_path, sizeof(so_path), "%s/program.so", cfg.build_dir);
-        FILE *fp = fopen(so_path, "r+b");
-        if (fp) {
-            fseek(fp, 18, SEEK_SET);
-            unsigned char sbf[2] = {0x07, 0x01};
-            fwrite(sbf, 1, 2, fp);
-            fclose(fp);
-        }
     }
 
     printf("\n  Build complete: %s/program.so\n", cfg.build_dir);
