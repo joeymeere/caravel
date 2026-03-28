@@ -1,6 +1,11 @@
 #include "cli.h"
 #include "config.h"
 
+typedef enum {
+    TOOLCHAIN_PLATFORM_TOOLS,
+    TOOLCHAIN_UPSTREAM,
+} Toolchain;
+
 static int collect_sources(const char *base, const char *rel,
                            char out[][CVL_MAX_PATH], int max, int n) {
     char dir[CVL_MAX_PATH];
@@ -103,11 +108,176 @@ static const char *find_tool(const char *env_var, const char *tool_name,
     return tool_name; /* fall back to PATH */
 }
 
+static int collect_syscalls(const char *ll_path,
+                            char out[][CVL_MAX_NAME], int max) {
+    FILE *f = fopen(ll_path, "r");
+    if (!f) {
+        fprintf(stderr, "err: cannot open %s\n", ll_path);
+        return -1;
+    }
+
+    int n = 0;
+    char line[4096];
+    while (fgets(line, sizeof(line), f) && n < max) {
+        if (strncmp(line, "declare", 7) != 0) continue;
+        char *at = strstr(line, "@sol_");
+        if (!at) continue;
+        at++; /* skip @ */
+        char *end = at;
+        while (*end && *end != '(' && *end != ' ') end++;
+        size_t len = (size_t)(end - at);
+        if (len > 0 && len < CVL_MAX_NAME) {
+            memcpy(out[n], at, len);
+            out[n][len] = '\0';
+            n++;
+        }
+    }
+
+    fclose(f);
+    return n;
+}
+
+static int compile_platform_tools(const char *clang, const char *opt_level,
+                                  const char *debug_flags, const char *inc,
+                                  const char *src_dir, const char *source,
+                                  const char *build_dir, char *obj_out) {
+    char base[CVL_MAX_PATH];
+    strncpy(base, source, CVL_MAX_PATH);
+    base[strlen(base) - 2] = '\0'; /* strip .c */
+
+    snprintf(obj_out, CVL_MAX_PATH, "%s/%s.o", build_dir, base);
+
+    char obj_dir[CVL_MAX_PATH];
+    strncpy(obj_dir, obj_out, CVL_MAX_PATH);
+    char *slash = strrchr(obj_dir, '/');
+    if (slash) { *slash = '\0'; cvl_mkdir_p(obj_dir); }
+
+    char cmd[CVL_MAX_PATH * 3];
+    snprintf(cmd, sizeof(cmd),
+        "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
+        "%s -I%s -c %s/%s -o %s",
+        clang, opt_level, debug_flags, inc,
+        src_dir, source, obj_out);
+
+    printf("  [CC] %s/%s\n", src_dir, source);
+    int rc = cvl_run_command(cmd);
+    if (rc != 0)
+        fprintf(stderr, "\nerr: compilation failed for %s (exit %d)\n",
+                source, rc);
+    return rc;
+}
+
+static int compile_upstream(const char *clang, const char *opt_level,
+                               const char *debug_flags, const char *inc,
+                               const char *src_dir, const char *source,
+                               const char *build_dir, char *bc_out,
+                               char exports[][CVL_MAX_NAME], int *nexports) {
+    char base[CVL_MAX_PATH];
+    strncpy(base, source, CVL_MAX_PATH);
+    base[strlen(base) - 2] = '\0'; /* strip .c */
+
+    snprintf(bc_out, CVL_MAX_PATH, "%s/%s.bc", build_dir, base);
+
+    char obj_dir[CVL_MAX_PATH];
+    strncpy(obj_dir, bc_out, CVL_MAX_PATH);
+    char *slash = strrchr(obj_dir, '/');
+    if (slash) { *slash = '\0'; cvl_mkdir_p(obj_dir); }
+
+    char ll_path[CVL_MAX_PATH];
+    snprintf(ll_path, sizeof(ll_path), "%s/%s.ll", build_dir, base);
+
+    char cmd[CVL_MAX_PATH * 3];
+    snprintf(cmd, sizeof(cmd),
+        "%s -target bpfel %s -fno-builtin -fdata-sections"
+        "%s -emit-llvm -S -I%s -o %s %s/%s",
+        clang, opt_level, debug_flags, inc,
+        ll_path, src_dir, source);
+
+    printf("  [CC] %s/%s\n", src_dir, source);
+    int rc = cvl_run_command(cmd);
+    if (rc != 0) {
+        fprintf(stderr, "\nerr: compilation failed for %s (exit %d)\n",
+                source, rc);
+        return rc;
+    }
+
+    char syscalls[64][CVL_MAX_NAME];
+    int nsys = collect_syscalls(ll_path, syscalls, 64);
+    if (nsys < 0) return -1;
+
+    for (int s = 0; s < nsys && *nexports < 64; s++) {
+        int dup = 0;
+        for (int e = 0; e < *nexports; e++) {
+            if (strcmp(exports[e], syscalls[s]) == 0) { dup = 1; break; }
+        }
+        if (!dup) {
+            strncpy(exports[*nexports], syscalls[s], CVL_MAX_NAME - 1);
+            (*nexports)++;
+        }
+    }
+
+    /* .ll → .bc */
+    snprintf(cmd, sizeof(cmd), "llvm-as %s -o %s", ll_path, bc_out);
+    rc = cvl_run_command(cmd);
+    if (rc != 0)
+        fprintf(stderr, "\nerr: llvm-as failed for %s (exit %d)\n",
+                ll_path, rc);
+    return rc;
+}
+
+static int link_platform_tools(const char *lld, const char *inc,
+                               const char *build_dir,
+                               char objs[][CVL_MAX_PATH], int nobj) {
+    char obj_list[CVL_MAX_PATH * 64] = "";
+    for (int i = 0; i < nobj; i++) {
+        strcat(obj_list, objs[i]);
+        if (i < nobj - 1) strcat(obj_list, " ");
+    }
+
+    char cmd[CVL_MAX_PATH * 3];
+    snprintf(cmd, sizeof(cmd),
+        "%s -z notext -shared --Bdynamic --gc-sections "
+        "%s/bpf.ld --entry entrypoint -o %s/program.so %s",
+        lld, inc, build_dir, obj_list);
+
+    return cvl_run_command(cmd);
+}
+
+static int link_upstream(const char *linker, const char *build_dir,
+                            char objs[][CVL_MAX_PATH], int nobj,
+                            char exports[][CVL_MAX_NAME], int nexports) {
+    char obj_list[CVL_MAX_PATH * 64] = "";
+    for (int i = 0; i < nobj; i++) {
+        strcat(obj_list, objs[i]);
+        if (i < nobj - 1) strcat(obj_list, " ");
+    }
+
+    char export_args[CVL_MAX_PATH * 2] = "";
+    strcat(export_args, "--export entrypoint");
+    for (int i = 0; i < nexports; i++) {
+        strcat(export_args, " --export ");
+        strcat(export_args, exports[i]);
+    }
+
+    char cmd[CVL_MAX_PATH * 3];
+    snprintf(cmd, sizeof(cmd),
+        "%s --cpu v2 %s "
+        "--cpu-features +allows-misaligned-mem-access "
+        "--disable-expand-memcpy-in-order "
+        "-O 1 "
+        "--llvm-args=-bpf-stack-size=4096 "
+        "--llvm-args=-inline-threshold=10000 "
+        "-o %s/program.so %s",
+        linker, export_args, build_dir, obj_list);
+
+    return cvl_run_command(cmd);
+}
+
 int cmd_build(int argc, char **argv) {
-    /* parse build flags */
     const char *opt_level = "-Oz";
     const char *debug_flags = "";
     const char *mode_label = "release";
+    Toolchain toolchain = TOOLCHAIN_PLATFORM_TOOLS;
 
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "--debug") == 0) {
@@ -118,6 +288,16 @@ int cmd_build(int argc, char **argv) {
             opt_level = "-O1";
             debug_flags = "";
             mode_label = "fast";
+        } else if (strncmp(argv[i], "--toolchain=", 12) == 0) {
+            const char *name = argv[i] + 12;
+            if (strcmp(name, "platform-tools") == 0)
+                toolchain = TOOLCHAIN_PLATFORM_TOOLS;
+            else if (strcmp(name, "upstream") == 0)
+                toolchain = TOOLCHAIN_UPSTREAM;
+            else {
+                fprintf(stderr, "err: unknown toolchain '%s'\n", name);
+                return 1;
+            }
         }
     }
 
@@ -127,7 +307,10 @@ int cmd_build(int argc, char **argv) {
         return 1;
     }
 
-    printf("\n  Building %s v%s (%s)\n\n", cfg.name, cfg.version, mode_label);
+    const char *toolchain_label = (toolchain == TOOLCHAIN_UPSTREAM)
+        ? "upstream" : "platform-tools";
+    printf("\n  Building %s v%s (%s, %s)\n\n",
+        cfg.name, cfg.version, mode_label, toolchain_label);
 
     cvl_mkdir_p(cfg.build_dir);
 
@@ -138,64 +321,53 @@ int cmd_build(int argc, char **argv) {
         fprintf(stderr, "err: no .c files found in '%s/'\n", cfg.src_dir);
         return 1;
     }
-
     printf("  Found %d source file(s)\n\n", nsrc);
 
     char clang_buf[CVL_MAX_PATH], lld_buf[CVL_MAX_PATH];
-    const char *clang = find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
-    const char *lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
+    const char *clang;
+    const char *lld = NULL;
+    const char *linker = NULL;
+
+    if (toolchain == TOOLCHAIN_UPSTREAM) {
+        clang = getenv("CVL_CLANG");
+        if (!clang) clang = "clang";
+        linker = getenv("CVL_SBPF_LINKER");
+        if (!linker) linker = "sbpf-linker";
+    } else {
+        clang = find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
+        lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
+    }
 
     const char *inc = getenv("CARAVEL_INCLUDE");
     if (!inc) inc = "../../include";
 
-    /* compile each .c to .o */
-    char cmd[CVL_MAX_PATH * 3];
     char obj_files[128][CVL_MAX_PATH];
-    int nobj = 0;
+    char exports[64][CVL_MAX_NAME];
+    int nobj = 0, nexports = 0;
 
     for (int i = 0; i < nsrc; i++) {
-        char base[CVL_MAX_PATH];
-        strncpy(base, sources[i], CVL_MAX_PATH);
-        size_t len = strlen(base);
-        base[len - 2] = '\0';
-
-        snprintf(obj_files[nobj], CVL_MAX_PATH, "%s/%s.o", cfg.build_dir, base);
-
-        char obj_dir[CVL_MAX_PATH];
-        strncpy(obj_dir, obj_files[nobj], CVL_MAX_PATH);
-        char *last_slash = strrchr(obj_dir, '/');
-        if (last_slash) {
-            *last_slash = '\0';
-            cvl_mkdir_p(obj_dir);
-        }
-
-        snprintf(cmd, sizeof(cmd),
-            "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections%s -I%s -c %s/%s -o %s",
-            clang, opt_level, debug_flags, inc, cfg.src_dir, sources[i], obj_files[nobj]);
-
-        printf("  [CC] %s/%s\n", cfg.src_dir, sources[i]);
-        int rc = cvl_run_command(cmd);
-        if (rc != 0) {
-            fprintf(stderr, "\nerr: compilation failed for %s (exit %d)\n",
-                    sources[i], rc);
-            return 1;
-        }
+        int rc;
+        if (toolchain == TOOLCHAIN_UPSTREAM)
+            rc = compile_upstream(clang, opt_level, debug_flags, inc,
+                    cfg.src_dir, sources[i], cfg.build_dir,
+                    obj_files[nobj], exports, &nexports);
+        else
+            rc = compile_platform_tools(clang, opt_level, debug_flags, inc,
+                    cfg.src_dir, sources[i], cfg.build_dir,
+                    obj_files[nobj]);
+        if (rc != 0) return 1;
         nobj++;
     }
 
-    /* link .o files → program.so */
     printf("\n  [LD] %s/program.so\n", cfg.build_dir);
 
-    char obj_list[CVL_MAX_PATH * 64] = "";
-    for (int i = 0; i < nobj; i++) {
-        strcat(obj_list, obj_files[i]);
-        if (i < nobj - 1) strcat(obj_list, " ");
-    }
+    int rc;
+    if (toolchain == TOOLCHAIN_UPSTREAM)
+        rc = link_upstream(linker, cfg.build_dir,
+                obj_files, nobj, exports, nexports);
+    else
+        rc = link_platform_tools(lld, inc, cfg.build_dir, obj_files, nobj);
 
-    snprintf(cmd, sizeof(cmd),
-        "%s -z notext -shared --Bdynamic --gc-sections %s/bpf.ld --entry entrypoint -o %s/program.so %s",
-        lld, inc, cfg.build_dir, obj_list);
-    int rc = cvl_run_command(cmd);
     if (rc != 0) {
         fprintf(stderr, "\nerr: linking failed (exit %d)\n", rc);
         return 1;
@@ -203,7 +375,6 @@ int cmd_build(int argc, char **argv) {
 
     printf("\n  Build complete: %s/program.so\n", cfg.build_dir);
 
-    /* TODO @joey IDLgen */
     printf("\n  Generating IDL...\n");
     cmd_idl(0, NULL);
 
