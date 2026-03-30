@@ -3,7 +3,7 @@
 
 #include <caravel.h>
 
-/* @cvl:state PoolState */
+CVL_STATE(PoolState)
 typedef struct {
     uint8_t   is_initialized;  /* 0      */
     uint8_t   bump;            /* 1      */

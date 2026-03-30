@@ -3,7 +3,7 @@
 
 #include <caravel.h>
 
-/* @cvl:state CounterState */
+CVL_STATE(CounterState)
 typedef struct {
     uint64_t count;
     CvlPubkey authority;

@@ -57,8 +57,8 @@
  */
 static inline bool cvl_pubkey_eq(const CvlPubkey *a, const CvlPubkey *b) {
     const uint64_t *pa = (const uint64_t *)a->bytes;
-    const uint64_t *pb = (const uint64_t *)b->bytes;
-    return pa[0] == pb[0] && pa[1] == pb[1] && pa[2] == pb[2] && pa[3] == pb[3];
+    const uint64_t *pb = (const uint64_t *)b->bytes;                                                                       
+    return ((pa[0] ^ pb[0]) | (pa[1] ^ pb[1]) | (pa[2] ^ pb[2]) | (pa[3] ^ pb[3])) == 0;  
 }
 
 /**

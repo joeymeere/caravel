@@ -118,8 +118,15 @@
     _cvl_idx++;
 
 /**
- * Main macro: generates account context struct + parse function.
+ * Mark a struct as a state account for IDL generation.
+ * Place immediately before the typedef struct.
+ *
+ * @code:
+ *    CVL_STATE(CounterState)
+ *    typedef struct { uint64_t count; } CounterState;
  */
+#define CVL_STATE(name)
+
 #define CVL_DEFINE_ACCOUNTS(prefix, accounts_table) \
     typedef struct { \
         accounts_table(_CVL_ACCOUNT_FIELD) \

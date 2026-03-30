@@ -3,7 +3,7 @@
 
 #include <caravel.h>
 
-/* @cvl:state TokenVaultState */
+CVL_STATE(TokenVaultState)
 typedef struct {
     CvlPubkey authority;
     CvlPubkey mint;

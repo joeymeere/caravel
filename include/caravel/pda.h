@@ -77,7 +77,37 @@ static inline uint64_t cvl_find_program_address(
     CvlPubkey *address,
     uint8_t *bump
 ) {
-    return sol_try_find_program_address(seeds, seeds_len, program_id, address, bump);
+    static const uint8_t pda_marker[] = "ProgramDerivedAddress";
+
+    CvlSignerSeed parts[19]; /* max 16 seeds + bump + program_id + marker */
+    int i;
+    for (i = 0; i < seeds_len; i++)
+        parts[i] = seeds[i];
+
+    uint8_t bump_byte = 255;
+    int bump_idx   = i++;
+    int pgm_idx    = i++;
+    int marker_idx = i++;
+
+    parts[bump_idx]   = (CvlSignerSeed){ .addr = &bump_byte,          .len = 1  };
+    parts[pgm_idx]    = (CvlSignerSeed){ .addr = program_id->bytes,   .len = 32 };
+    parts[marker_idx] = (CvlSignerSeed){ .addr = pda_marker,          .len = 21 };
+
+    for (;;) {
+        sol_sha256(parts, (uint64_t)i, address->bytes);
+
+        /* curve_id 0 = Ed25519; returns 0 if on curve */
+        if (sol_curve_validate_point(0, address->bytes, 0) != 0) {
+            *bump = bump_byte;
+            return CVL_SUCCESS;
+        }
+
+        if (bump_byte == 0)
+            break;
+        bump_byte--;
+    }
+
+    return CVL_ERROR_INVALID_PDA;
 }
 
 /**

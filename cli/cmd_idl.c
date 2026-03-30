@@ -43,6 +43,12 @@ typedef struct {
     int  code;
 } IdlError;
 
+typedef struct {
+    char     type_name[CVL_MAX_NAME];
+    IdlField fields[MAX_ARGS];
+    int      num_fields;
+} ArgsType;
+
 static IdlInstruction g_instructions[MAX_INSTRUCTIONS];
 static int            g_num_instructions;
 
@@ -51,6 +57,9 @@ static int            g_num_states;
 
 static IdlError       g_errors[MAX_ERRORS];
 static int            g_num_errors;
+
+static ArgsType       g_args_types[MAX_INSTRUCTIONS];
+static int            g_num_args_types;
 
 static int  g_pending_ix[MAX_PENDING];
 static int  g_num_pending;
@@ -61,6 +70,9 @@ static int        g_num_temp_accounts;
 static bool      g_in_accounts_macro;
 static bool      g_waiting_for_struct;
 static IdlState *g_cur_state;
+
+static bool      g_waiting_for_args_struct;
+static ArgsType *g_cur_args_type;
 
 static char g_files[MAX_FILES][CVL_MAX_PATH];
 static int  g_num_files;
@@ -123,6 +135,40 @@ static const char *known_program_address(const char *name) {
     return NULL;
 }
 
+static int parse_struct_field(const char *line, IdlField *out) {
+    const char *p = line;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '\0' || *p == '#' || *p == '/' || *p == '*') return 0;
+
+    char ctype[CVL_MAX_NAME] = {0};
+    int i = 0;
+    while (*p && *p != ' ' && *p != '\t' && i < CVL_MAX_NAME - 1)
+        ctype[i++] = *p++;
+    ctype[i] = '\0';
+    while (*p == ' ' || *p == '\t') p++;
+
+    char fname[CVL_MAX_NAME] = {0};
+    i = 0;
+    while (*p && *p != ';' && *p != '[' && *p != ' ' && *p != '\t'
+           && i < CVL_MAX_NAME - 1)
+        fname[i++] = *p++;
+    fname[i] = '\0';
+
+    if (fname[0] == '_' || fname[0] == '\0') return 0; /* skip pad */
+
+    int array_size = 0;
+    if (*p == '[') { p++; array_size = atoi(p); }
+
+    strncpy(out->name, fname, CVL_MAX_NAME - 1);
+    if (array_size > 0) {
+        snprintf(out->type, CVL_MAX_NAME, "{\"array\":[\"%s\",%d]}",
+                 map_c_type(ctype), array_size);
+    } else {
+        strncpy(out->type, map_c_type(ctype), CVL_MAX_NAME - 1);
+    }
+    return 1;
+}
+
 static void parse_line(const char *raw) {
     char line[2048];
     strncpy(line, raw, sizeof(line) - 1);
@@ -174,41 +220,139 @@ static void parse_line(const char *raw) {
         return;
     }
 
+    if (g_waiting_for_args_struct) {
+        if (strchr(line, '{')) g_waiting_for_args_struct = false;
+        return;
+    }
+
     if (g_cur_state) {
         if (strchr(line, '}')) { g_cur_state = NULL; return; }
-
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-        if (*p == '\0' || *p == '#' || *p == '/' || *p == '*') return;
-
-        char ctype[CVL_MAX_NAME] = {0};
-        int i = 0;
-        while (*p && *p != ' ' && *p != '\t' && i < CVL_MAX_NAME - 1)
-            ctype[i++] = *p++;
-        ctype[i] = '\0';
-        while (*p == ' ' || *p == '\t') p++;
-
-        char fname[CVL_MAX_NAME] = {0};
-        i = 0;
-        while (*p && *p != ';' && *p != '[' && *p != ' ' && *p != '\t'
-               && i < CVL_MAX_NAME - 1)
-            fname[i++] = *p++;
-        fname[i] = '\0';
-
-        if (fname[0] == '_' || fname[0] == '\0') return; /* skip pad */
-
-        int array_size = 0;
-        if (*p == '[') { p++; array_size = atoi(p); }
-
         if (g_cur_state->num_fields < MAX_FIELDS) {
-            IdlField *f = &g_cur_state->fields[g_cur_state->num_fields++];
-            strncpy(f->name, fname, CVL_MAX_NAME - 1);
-            if (array_size > 0) {
-                snprintf(f->type, CVL_MAX_NAME, "{\"array\":[\"%s\",%d]}",
-                         map_c_type(ctype), array_size);
-            } else {
-                strncpy(f->type, map_c_type(ctype), CVL_MAX_NAME - 1);
+            IdlField f = {0};
+            if (parse_struct_field(line, &f))
+                g_cur_state->fields[g_cur_state->num_fields++] = f;
+        }
+        return;
+    }
+
+    if (g_cur_args_type) {
+        char *close = strchr(line, '}');
+        if (close) {
+            char *p = close + 1;
+            while (*p == ' ' || *p == '\t') p++;
+            char tname[CVL_MAX_NAME] = {0};
+            int i = 0;
+            while (*p && *p != ';' && *p != ' ' && *p != '\t'
+                   && i < CVL_MAX_NAME - 1)
+                tname[i++] = *p++;
+            tname[i] = '\0';
+            strncpy(g_cur_args_type->type_name, tname, CVL_MAX_NAME - 1);
+            g_cur_args_type = NULL;
+            return;
+        }
+        if (g_cur_args_type->num_fields < MAX_ARGS) {
+            IdlField f = {0};
+            if (parse_struct_field(line, &f))
+                g_cur_args_type->fields[g_cur_args_type->num_fields++] = f;
+        }
+        return;
+    }
+
+    if (strstr(line, "typedef") && strstr(line, "struct")
+        && strstr(line, "packed")) {
+        if (g_num_args_types < MAX_INSTRUCTIONS) {
+            ArgsType *at = &g_args_types[g_num_args_types++];
+            memset(at, 0, sizeof(*at));
+            g_cur_args_type = at;
+            if (!strchr(line, '{'))
+                g_waiting_for_args_struct = true;
+        }
+        return;
+    }
+
+    if (strstr(line, "CVL_STATE(") && !strstr(line, "#define")) {
+        if (g_num_states >= MAX_STATES) return;
+        char *p = strstr(line, "CVL_STATE(") + 10;
+        while (*p == ' ' || *p == '\t') p++;
+
+        IdlState *st = &g_states[g_num_states++];
+        memset(st, 0, sizeof(*st));
+
+        int i = 0;
+        while (*p && *p != ')' && *p != ' ' && *p != '\t'
+               && i < CVL_MAX_NAME - 1)
+            st->name[i++] = *p++;
+        st->name[i] = '\0';
+
+        g_cur_state = st;
+        g_waiting_for_struct = true;
+        return;
+    }
+
+    char *ix_match = strstr(line, "CVL_IX(");
+    if (ix_match && !strstr(line, "#define")
+        && !strstr(line, "_CVL_IX")
+        && !strstr(line, "CVL_IX_DATA")) {
+        char *p = ix_match + 7;
+        while (*p == ' ' || *p == '\t') p++;
+
+        int disc = atoi(p);
+
+        while (*p && *p != ',') p++;
+        if (*p == ',') p++;
+        while (*p == ' ' || *p == '\t') p++;
+
+        /* 2nd param: instruction name */
+        char name[CVL_MAX_NAME] = {0};
+        int i = 0;
+        while (*p && *p != ',' && *p != ')' && i < CVL_MAX_NAME - 1) {
+            if (*p != ' ' && *p != '\t') name[i++] = *p;
+            p++;
+        }
+        name[i] = '\0';
+
+        while (*p && *p != ',') p++;
+        if (*p == ',') p++;
+        while (*p == ' ' || *p == '\t') p++;
+
+        while (*p && *p != ',' && *p != ')') p++;
+
+        char args_type[CVL_MAX_NAME] = {0};
+        if (*p == ',') {
+            p++;
+            while (*p == ' ' || *p == '\t') p++;
+            i = 0;
+            while (*p && *p != ')' && *p != ' ' && *p != '\t'
+                   && i < CVL_MAX_NAME - 1)
+                args_type[i++] = *p++;
+            args_type[i] = '\0';
+        }
+
+        if (g_num_instructions < MAX_INSTRUCTIONS && name[0]) {
+            IdlInstruction *ix = &g_instructions[g_num_instructions];
+            memset(ix, 0, sizeof(*ix));
+            strncpy(ix->name, name, CVL_MAX_NAME - 1);
+            ix->discriminator = disc;
+
+            for (int a = 0; a < g_num_temp_accounts && a < MAX_ACCOUNTS; a++)
+                ix->accounts[a] = g_temp_accounts[a];
+            ix->num_accounts = g_num_temp_accounts;
+
+            if (args_type[0]) {
+                for (int t = 0; t < g_num_args_types; t++) {
+                    if (strcmp(g_args_types[t].type_name,
+                              args_type) == 0) {
+                        for (int a = 0;
+                             a < g_args_types[t].num_fields
+                             && a < MAX_ARGS; a++)
+                            ix->args[a] = g_args_types[t].fields[a];
+                        ix->num_args = g_args_types[t].num_fields;
+                        break;
+                    }
+                }
             }
+
+            g_num_instructions++;
         }
         return;
     }
@@ -446,8 +590,10 @@ static int emit_idl(const char *output_path, const CvlConfig *cfg) {
             if (acc->is_program && acc->address[0]) {
                 fprintf(fp, ", \"address\": \"%s\"", acc->address);
             } else {
-                if (acc->is_writable) fprintf(fp, ", \"writable\": true");
-                if (acc->is_signer)   fprintf(fp, ", \"signer\": true");
+                fprintf(fp, ", \"writable\": %s",
+                        acc->is_writable ? "true" : "false");
+                fprintf(fp, ", \"signer\": %s",
+                        acc->is_signer ? "true" : "false");
             }
             fprintf(fp, " }%s\n", (a < ix->num_accounts - 1) ? "," : "");
         }
@@ -517,14 +663,17 @@ int cmd_idl(int argc, char **argv) {
         return 1;
     }
 
-    g_num_instructions   = 0;
-    g_num_states         = 0;
-    g_num_errors         = 0;
-    g_num_pending        = 0;
-    g_num_temp_accounts  = 0;
-    g_in_accounts_macro  = false;
-    g_waiting_for_struct = false;
-    g_cur_state          = NULL;
+    g_num_instructions       = 0;
+    g_num_states             = 0;
+    g_num_errors             = 0;
+    g_num_args_types         = 0;
+    g_num_pending            = 0;
+    g_num_temp_accounts      = 0;
+    g_in_accounts_macro      = false;
+    g_waiting_for_struct     = false;
+    g_waiting_for_args_struct = false;
+    g_cur_state              = NULL;
+    g_cur_args_type          = NULL;
 
     if (scan_directory(cfg.src_dir) != 0) return 1;
 

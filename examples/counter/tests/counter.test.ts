@@ -1,166 +1,181 @@
 import { expect } from "chai";
-import { LiteSVM, FailedTransactionMetadata } from "litesvm";
+import { LiteSVM, FailedTransactionMetadata, TransactionMetadata } from "litesvm";
 import {
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-} from "@solana/web3.js";
+  AccountRole,
+  address,
+  type Address,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  createTransactionMessage,
+  generateKeyPair,
+  getAddressEncoder,
+  getAddressFromPublicKey,
+  lamports,
+  pipe,
+  setTransactionMessageFeePayer,
+  signTransaction,
+  type Instruction,
+  type Transaction,
+} from "@solana/kit";
 import * as fs from "fs";
 import * as path from "path";
 
-function sendAndConfirm(svm: LiteSVM, tx: Transaction): void {
-  const result = svm.sendTransaction(tx);
-  if (result instanceof FailedTransactionMetadata) {
-    throw new Error(`Transaction failed: ${result.toString()}`);
-  }
+const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 
-  result.logs().forEach(log => {
-    console.log(`      ${log}`);
-  });
+async function buildTx(
+  svm: LiteSVM,
+  feePayer: Address,
+  signerKeys: CryptoKeyPair[],
+  ix: Instruction,
+): Promise<Transaction> {
+  const msg = pipe(
+    createTransactionMessage({ version: "legacy" }),
+    (m) => setTransactionMessageFeePayer(feePayer, m),
+    (m) => svm.setTransactionMessageLifetimeUsingLatestBlockhash(m),
+    (m) => appendTransactionMessageInstruction(ix, m),
+  );
+  return await signTransaction(signerKeys, compileTransaction(msg));
+}
+
+function disc(d: number): Uint8Array {
+  return new Uint8Array([d]);
 }
 
 describe("Counter Program", () => {
   const programPath = path.join(__dirname, "..", "build", "program.so");
-  const programId = Keypair.generate().publicKey;
 
+  let programId: Address;
   let svm: LiteSVM;
-  let payer: Keypair;
-  let counterAccount: Keypair;
+  let payerKeys: CryptoKeyPair;
+  let payerAddr: Address;
+  let counterKeys: CryptoKeyPair;
+  let counterAddr: Address;
 
-  before(() => {
+  before(async () => {
+    const programKeys = await generateKeyPair();
+    programId = await getAddressFromPublicKey(programKeys.publicKey);
+
     svm = new LiteSVM();
     svm.addProgram(programId, fs.readFileSync(programPath));
 
-    payer = Keypair.generate();
-    svm.airdrop(payer.publicKey, BigInt(10_000_000_000));
+    payerKeys = await generateKeyPair();
+    payerAddr = await getAddressFromPublicKey(payerKeys.publicKey);
+    svm.airdrop(payerAddr, lamports(10_000_000_000n));
 
-    counterAccount = Keypair.generate();
+    counterKeys = await generateKeyPair();
+    counterAddr = await getAddressFromPublicKey(counterKeys.publicKey);
   });
 
-  it("initializes a counter", () => {
-    const data = Buffer.alloc(1);
-    data.writeUInt8(0, 0); // discriminator = 0 (initialize)
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: payer.publicKey, isSigner: true, isWritable: true },
-        { pubkey: counterAccount.publicKey, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  it("initializes a counter", async () => {
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: payerAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: counterAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: SYSTEM_PROGRAM, role: AccountRole.READONLY },
       ],
-      programId,
-      data,
-    });
+      data: disc(0),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(payer, counterAccount);
+    const tx = await buildTx(svm, payerAddr, [payerKeys, counterKeys], ix);
+    const result = svm.sendTransaction(tx);
+    if (result instanceof FailedTransactionMetadata)
+      throw new Error(`Transaction failed: ${result.toString()}`);
+    result.logs().forEach((l) => console.log(`      ${l}`));
+    console.log(`      initialize: ${result.computeUnitsConsumed()} CU`);
 
-    sendAndConfirm(svm, tx);
+    const acct = svm.getAccount(counterAddr);
+    expect(acct.exists).to.be.true;
+    if (acct.exists) {
+      const data = acct.data;
+      const count = new DataView(data.buffer, data.byteOffset).getBigUint64(0, true);
+      expect(count).to.equal(0n);
 
-    const account = svm.getAccount(counterAccount.publicKey);
-    expect(account).to.not.be.null;
-
-    const accountData = Buffer.from(account!.data);
-    const count = accountData.readBigUInt64LE(0);
-    expect(count).to.equal(BigInt(0));
-
-    const authority = new PublicKey(accountData.subarray(8, 40));
-    expect(authority.equals(payer.publicKey)).to.be.true;
+      const encoder = getAddressEncoder();
+      const authorityBytes = data.slice(8, 40);
+      const payerBytes = encoder.encode(payerAddr);
+      expect(Buffer.from(authorityBytes).equals(Buffer.from(payerBytes))).to.be.true;
+    }
   });
 
-  it("increments the counter", () => {
-    const data = Buffer.alloc(1);
-    data.writeUInt8(1, 0); // discriminator = 1 (increment)
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: counterAccount.publicKey, isSigner: false, isWritable: true },
-        { pubkey: payer.publicKey, isSigner: true, isWritable: false },
+  it("increments the counter", async () => {
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: counterAddr, role: AccountRole.WRITABLE },
+        { address: payerAddr, role: AccountRole.READONLY_SIGNER },
       ],
-      programId,
-      data,
-    });
+      data: disc(1),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(payer);
+    const tx = await buildTx(svm, payerAddr, [payerKeys], ix);
+    const result = svm.sendTransaction(tx);
+    if (result instanceof FailedTransactionMetadata)
+      throw new Error(`Transaction failed: ${result.toString()}`);
+    result.logs().forEach((l) => console.log(`      ${l}`));
+    console.log(`      increment: ${result.computeUnitsConsumed()} CU`);
 
-    sendAndConfirm(svm, tx);
-
-    const account = svm.getAccount(counterAccount.publicKey);
-    const accountData = Buffer.from(account!.data);
-    const count = accountData.readBigUInt64LE(0);
-    expect(count).to.equal(BigInt(1));
+    const acct = svm.getAccount(counterAddr);
+    if (acct.exists) {
+      const count = new DataView(acct.data.buffer, acct.data.byteOffset).getBigUint64(0, true);
+      expect(count).to.equal(1n);
+    }
   });
 
-  it("decrements the counter", () => {
-    const data = Buffer.alloc(1);
-    data.writeUInt8(2, 0); // discriminator = 2 (decrement)
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: counterAccount.publicKey, isSigner: false, isWritable: true },
-        { pubkey: payer.publicKey, isSigner: true, isWritable: false },
+  it("decrements the counter", async () => {
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: counterAddr, role: AccountRole.WRITABLE },
+        { address: payerAddr, role: AccountRole.READONLY_SIGNER },
       ],
-      programId,
-      data,
-    });
+      data: disc(2),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(payer);
+    const tx = await buildTx(svm, payerAddr, [payerKeys], ix);
+    const result = svm.sendTransaction(tx);
+    if (result instanceof FailedTransactionMetadata)
+      throw new Error(`Transaction failed: ${result.toString()}`);
+    result.logs().forEach((l) => console.log(`      ${l}`));
+    console.log(`      decrement: ${result.computeUnitsConsumed()} CU`);
 
-    sendAndConfirm(svm, tx);
-
-    const account = svm.getAccount(counterAccount.publicKey);
-    const accountData = Buffer.from(account!.data);
-    const count = accountData.readBigUInt64LE(0);
-    expect(count).to.equal(BigInt(0));
+    const acct = svm.getAccount(counterAddr);
+    if (acct.exists) {
+      const count = new DataView(acct.data.buffer, acct.data.byteOffset).getBigUint64(0, true);
+      expect(count).to.equal(0n);
+    }
   });
 
-  it("rejects decrement when counter is zero", () => {
-    const data = Buffer.alloc(1);
-    data.writeUInt8(2, 0); // discriminator = 2 (decrement)
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: counterAccount.publicKey, isSigner: false, isWritable: true },
-        { pubkey: payer.publicKey, isSigner: true, isWritable: false },
+  it("rejects decrement when counter is zero", async () => {
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: counterAddr, role: AccountRole.WRITABLE },
+        { address: payerAddr, role: AccountRole.READONLY_SIGNER },
       ],
-      programId,
-      data,
-    });
+      data: disc(2),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(payer);
-
+    const tx = await buildTx(svm, payerAddr, [payerKeys], ix);
     const result = svm.sendTransaction(tx);
     expect(result).to.be.instanceOf(FailedTransactionMetadata);
   });
 
-  it("rejects increment from wrong authority", () => {
-    const wrongAuthority = Keypair.generate();
-    svm.airdrop(wrongAuthority.publicKey, BigInt(1_000_000_000));
+  it("rejects increment from wrong authority", async () => {
+    const wrongKeys = await generateKeyPair();
+    const wrongAddr = await getAddressFromPublicKey(wrongKeys.publicKey);
+    svm.airdrop(wrongAddr, lamports(1_000_000_000n));
 
-    const data = Buffer.alloc(1);
-    data.writeUInt8(1, 0); // discriminator = 1 (increment)
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: counterAccount.publicKey, isSigner: false, isWritable: true },
-        { pubkey: wrongAuthority.publicKey, isSigner: true, isWritable: false },
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: counterAddr, role: AccountRole.WRITABLE },
+        { address: wrongAddr, role: AccountRole.READONLY_SIGNER },
       ],
-      programId,
-      data,
-    });
+      data: disc(1),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(wrongAuthority);
-
+    const tx = await buildTx(svm, wrongAddr, [wrongKeys], ix);
     const result = svm.sendTransaction(tx);
     expect(result).to.be.instanceOf(FailedTransactionMetadata);
   });
