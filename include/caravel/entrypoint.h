@@ -1,13 +1,13 @@
-#ifndef CVL_ENTRYPOINT_H
-#define CVL_ENTRYPOINT_H
+#ifndef ENTRYPOINT_H
+#define ENTRYPOINT_H
 
 #include "types.h"
 #include "util.h"
 
-static inline uint64_t _cvl_deserialize_nodup(
+static inline uint64_t _deserialize_nodup(
     const uint8_t *input,
-    CvlParameters *params,
-    CvlAccountInfo *account_buf,
+    Parameters *params,
+    AccountInfo *account_buf,
     uint64_t account_buf_len
 ) {
     const uint8_t *ptr = input;
@@ -16,7 +16,7 @@ static inline uint64_t _cvl_deserialize_nodup(
     ptr += 8;
 
     if (num_accounts > account_buf_len)
-        return CVL_ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
+        return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 
     params->accounts = account_buf;
     params->accounts_len = num_accounts;
@@ -25,17 +25,17 @@ static inline uint64_t _cvl_deserialize_nodup(
         uint8_t dup_marker = *ptr++;
 
         if (dup_marker != 0xFF) {
-            return CVL_ERROR_INVALID_ARGUMENT;
+            return ERROR_INVALID_ARGUMENT;
         } else {
             account_buf[i].is_signer   = *ptr++;
             account_buf[i].is_writable = *ptr++;
             account_buf[i].executable  = *ptr++;
             ptr += 4;
 
-            account_buf[i].key = (CvlPubkey *)ptr;
+            account_buf[i].key = (Pubkey *)ptr;
             ptr += 32;
 
-            account_buf[i].owner = (CvlPubkey *)ptr;
+            account_buf[i].owner = (Pubkey *)ptr;
             ptr += 32;
 
             account_buf[i].lamports = (uint64_t *)ptr;
@@ -57,10 +57,10 @@ static inline uint64_t _cvl_deserialize_nodup(
     return 0;
 }
 
-static inline uint64_t _cvl_deserialize_accounts(
+static inline uint64_t _deserialize_accounts(
     const uint8_t *input,
-    CvlParameters *params,
-    CvlAccountInfo *account_buf,
+    Parameters *params,
+    AccountInfo *account_buf,
     uint64_t account_buf_len
 ) {
     const uint8_t *ptr = input;
@@ -69,7 +69,7 @@ static inline uint64_t _cvl_deserialize_accounts(
     ptr += 8;
 
     if (num_accounts > account_buf_len) {
-        return CVL_ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
+        return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
     }
 
     params->accounts = account_buf;
@@ -87,10 +87,10 @@ static inline uint64_t _cvl_deserialize_accounts(
             account_buf[i].executable  = *ptr++;
             ptr += 4;
 
-            account_buf[i].key = (CvlPubkey *)ptr;
+            account_buf[i].key = (Pubkey *)ptr;
             ptr += 32;
 
-            account_buf[i].owner = (CvlPubkey *)ptr;
+            account_buf[i].owner = (Pubkey *)ptr;
             ptr += 32;
 
             account_buf[i].lamports = (uint64_t *)ptr;
@@ -109,16 +109,16 @@ static inline uint64_t _cvl_deserialize_accounts(
         }
     }
 
-    return 0; /* CVL_SUCCESS */
+    return 0; /* SUCCESS */
 }
 
-static inline uint64_t _cvl_deserialize_full(
+static inline uint64_t _deserialize_full(
     const uint8_t *input,
-    CvlParameters *params,
-    CvlAccountInfo *account_buf,
+    Parameters *params,
+    AccountInfo *account_buf,
     uint64_t account_buf_len
 ) {
-    uint64_t err = _cvl_deserialize_accounts(input, params,
+    uint64_t err = _deserialize_accounts(input, params,
                                               account_buf, account_buf_len);
     if (err) return err;
 
@@ -144,47 +144,47 @@ static inline uint64_t _cvl_deserialize_full(
     params->data_len = data_len;
     ptr += data_len;
 
-    params->program_id = (CvlPubkey *)ptr;
+    params->program_id = (Pubkey *)ptr;
 
     return 0;
 }
 
-#if !defined(CVL_NO_HEAP) && !defined(CVL_CUSTOM_HEAP)
-#define _CVL_HEAP_INIT() cvl_heap_init()
+#if !defined(NO_HEAP) && !defined(CUSTOM_HEAP)
+#define _HEAP_INIT() heap_init()
 #else
-#define _CVL_HEAP_INIT() ((void)0)
+#define _HEAP_INIT() ((void)0)
 #endif
 
-#define CVL_ENTRYPOINT(...) \
+#define ENTRYPOINT(...) \
     uint64_t entrypoint(const uint8_t *input, const uint8_t *ix_data) { \
-        _CVL_HEAP_INIT(); \
-        uint64_t _cvl_ix_len = *(uint64_t *)(ix_data - 8); \
-        if (_cvl_ix_len == 0) return CVL_ERROR_INVALID_INSTRUCTION_DATA; \
-        CvlAccountInfo _cvl_accts[CVL_MAX_ACCOUNTS]; \
-        CvlParameters  _cvl_p; \
-        uint64_t _cvl_err = _cvl_deserialize_nodup(input, &_cvl_p, \
-                                _cvl_accts, CVL_MAX_ACCOUNTS); \
-        if (_cvl_err) return _cvl_err; \
-        _cvl_p.data       = (uint8_t *)ix_data; \
-        _cvl_p.data_len   = _cvl_ix_len; \
-        _cvl_p.program_id = (CvlPubkey *)(ix_data + _cvl_ix_len); \
-        CvlParameters *params = &_cvl_p; \
-        uint8_t _cvl_disc = ix_data[0]; \
-        switch (_cvl_disc) { \
+        _HEAP_INIT(); \
+        uint64_t _ix_len = *(uint64_t *)(ix_data - 8); \
+        if (_ix_len == 0) return ERROR_INVALID_INSTRUCTION_DATA; \
+        AccountInfo _accts[MAX_ACCOUNTS]; \
+        Parameters  _p; \
+        uint64_t _err = _deserialize_nodup(input, &_p, \
+                                _accts, MAX_ACCOUNTS); \
+        if (_err) return _err; \
+        _p.data       = (uint8_t *)ix_data; \
+        _p.data_len   = _ix_len; \
+        _p.program_id = (Pubkey *)(ix_data + _ix_len); \
+        Parameters *params = &_p; \
+        uint8_t _disc = ix_data[0]; \
+        switch (_disc) { \
             __VA_ARGS__ \
-            default: return CVL_ERROR_UNKNOWN_INSTRUCTION; \
+            default: return ERROR_UNKNOWN_INSTRUCTION; \
         } \
     }
 
-#define CVL_LEGACY_ENTRYPOINT(handler) \
+#define LEGACY_ENTRYPOINT(handler) \
     uint64_t entrypoint(const uint8_t *input) { \
-        _CVL_HEAP_INIT(); \
-        CvlAccountInfo _cvl_accounts[CVL_MAX_ACCOUNTS]; \
-        CvlParameters  _cvl_params; \
-        uint64_t _cvl_err = _cvl_deserialize_full(input, &_cvl_params, \
-                                                    _cvl_accounts, CVL_MAX_ACCOUNTS); \
-        if (_cvl_err) return _cvl_err; \
-        return handler(&_cvl_params); \
+        _HEAP_INIT(); \
+        AccountInfo _accounts[MAX_ACCOUNTS]; \
+        Parameters  _params; \
+        uint64_t _err = _deserialize_full(input, &_params, \
+                                                    _accounts, MAX_ACCOUNTS); \
+        if (_err) return _err; \
+        return handler(&_params); \
     }
 
 /**
@@ -192,11 +192,11 @@ static inline uint64_t _cvl_deserialize_full(
  *
  * @code
  *   uint64_t process(const uint8_t *input) { ... }
- *   CVL_RAW_ENTRYPOINT(process);
+ *   RAW_ENTRYPOINT(process);
  */
-#define CVL_RAW_ENTRYPOINT(handler) \
+#define RAW_ENTRYPOINT(handler) \
     void entrypoint(const uint8_t *input) { \
         handler(input); \
     }
 
-#endif /* CVL_ENTRYPOINT_H */
+#endif /* ENTRYPOINT_H */

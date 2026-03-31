@@ -1,5 +1,5 @@
-#ifndef CVL_TPL_MAKEFILE_H
-#define CVL_TPL_MAKEFILE_H
+#ifndef TPL_MAKEFILE_H
+#define TPL_MAKEFILE_H
 
 static const char *TPL_MAKEFILE =
 "PROGRAM   := %s\n"
@@ -45,4 +45,4 @@ static const char *TPL_MAKEFILE =
 "deploy: build\n"
 "\tsolana program deploy $(SO)\n";
 
-#endif /* CVL_TPL_MAKEFILE_H */
+#endif /* TPL_MAKEFILE_H */

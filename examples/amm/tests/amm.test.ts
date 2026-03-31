@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { LiteSVM, FailedTransactionMetadata, TransactionMetadata } from "litesvm";
 import {
   address,
-  Address,
+  type Address,
   AccountRole,
   appendTransactionMessageInstruction,
   appendTransactionMessageInstructions,
@@ -21,6 +21,8 @@ import {
 } from "@solana/kit";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const LAMPORTS_PER_SOL = 1_000_000_000n;
 const SYSTEM_PROGRAM = address("11111111111111111111111111111111");

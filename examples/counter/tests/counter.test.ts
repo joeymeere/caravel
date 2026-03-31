@@ -19,6 +19,8 @@ import {
 } from "@solana/kit";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
 
