@@ -1,5 +1,5 @@
-#ifndef CVL_SYSCALL_H
-#define CVL_SYSCALL_H
+#ifndef SYSCALL_H
+#define SYSCALL_H
 
 #include "types.h"
 
@@ -19,7 +19,7 @@ extern void sol_log_64_(uint64_t arg1, uint64_t arg2, uint64_t arg3,
  *
  * @param key The public key to print
  */
-extern void sol_log_pubkey(const CvlPubkey *pubkey);
+extern void sol_log_pubkey(const Pubkey *pubkey);
 
 /**
  * Prints the current compute unit consumption to stdout
@@ -63,10 +63,10 @@ extern int   sol_memcmp_(const void *a, const void *b, uint64_t n, int *result);
  * @param seeds_len Length of the seeds array
  */
 extern uint64_t sol_invoke_signed_c(
-    const CvlInstruction   *instruction,
-    const CvlAccountInfo   *account_infos,
+    const Instruction   *instruction,
+    const AccountInfo   *account_infos,
     int                     account_infos_len,
-    const CvlSignerSeeds   *signer_seeds,
+    const SignerSeeds   *signer_seeds,
     int                     signer_seeds_len
 );
 
@@ -79,10 +79,10 @@ extern uint64_t sol_invoke_signed_c(
  * @param program_address Program address created, filled on return
  */
 extern uint64_t sol_create_program_address(
-    const CvlSignerSeed *seeds,
+    const SignerSeed *seeds,
     int                  seeds_len,
-    const CvlPubkey     *program_id,
-    CvlPubkey           *address
+    const Pubkey     *program_id,
+    Pubkey           *address
 );
 
 /**
@@ -95,22 +95,22 @@ extern uint64_t sol_create_program_address(
  * @param bump_seed Bump seed required to create a valid program address
  */
 extern uint64_t sol_try_find_program_address(
-    const CvlSignerSeed *seeds,
+    const SignerSeed *seeds,
     int                  seeds_len,
-    const CvlPubkey     *program_id,
-    CvlPubkey           *address,
+    const Pubkey     *program_id,
+    Pubkey           *address,
     uint8_t             *bump_seed
 );
 
 /**
  * Sha256
  *
- * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals Array of {addr, len} pairs (same layout as SignerSeed)
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
 extern uint64_t sol_sha256(
-    const CvlSignerSeed *vals,
+    const SignerSeed *vals,
     uint64_t              vals_len,
     uint8_t               result[32]
 );
@@ -118,12 +118,12 @@ extern uint64_t sol_sha256(
 /**
  * Keccak256
  *
- * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals Array of {addr, len} pairs (same layout as SignerSeed)
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
 extern uint64_t sol_keccak256(
-    const CvlSignerSeed *vals,
+    const SignerSeed *vals,
     uint64_t              vals_len,
     uint8_t               result[32]
 );
@@ -131,16 +131,16 @@ extern uint64_t sol_keccak256(
 /**
  * Get the clock sysvar
  *
- * @param clock Pointer to a CvlClock struct to fill
- * @return CVL_SUCCESS on success
+ * @param clock Pointer to a Clock struct to fill
+ * @return SUCCESS on success
  */
 extern uint64_t sol_get_clock_sysvar(void *clock);
 
 /**
  * Get the rent sysvar
  *
- * @param rent Pointer to a CvlRent struct to fill
- * @return CVL_SUCCESS on success
+ * @param rent Pointer to a Rent struct to fill
+ * @return SUCCESS on success
  */
 extern uint64_t sol_get_rent_sysvar(void *rent);
 
@@ -150,12 +150,12 @@ extern uint64_t sol_get_rent_sysvar(void *rent);
  * @param data Pointer to a uint8_t array to fill
  * @param data_len Length of the data array
  * @param program_id Program id of the signer
- * @return CVL_SUCCESS on success
+ * @return SUCCESS on success
  */
 extern uint64_t sol_get_return_data(
     uint8_t   *data,
     uint64_t   data_len,
-    CvlPubkey *program_id
+    Pubkey *program_id
 );
 
 /**
@@ -184,12 +184,12 @@ extern uint64_t sol_remaining_compute_units(void);
 /**
  * Blake3
  *
- * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals Array of {addr, len} pairs (same layout as SignerSeed)
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
 extern uint64_t sol_blake3(
-    const CvlSignerSeed *vals,
+    const SignerSeed *vals,
     uint64_t              vals_len,
     uint8_t               result[32]
 );
@@ -199,14 +199,14 @@ extern uint64_t sol_blake3(
  *
  * @param parameters Hash parameters (1 = Bn254X5)
  * @param endianness 0 = big-endian, 1 = little-endian
- * @param vals Array of {addr, len} pairs (same layout as CvlSignerSeed)
+ * @param vals Array of {addr, len} pairs (same layout as SignerSeed)
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
 extern uint64_t sol_poseidon(
     uint64_t              parameters,
     uint64_t              endianness,
-    const CvlSignerSeed *vals,
+    const SignerSeed *vals,
     uint64_t              vals_len,
     uint8_t               result[32]
 );
@@ -342,7 +342,7 @@ extern uint64_t sol_get_last_restart_slot(void *slot);
  * @param length Number of bytes to read
  */
 extern uint64_t sol_get_sysvar(
-    const CvlPubkey *sysvar_id,
+    const Pubkey *sysvar_id,
     uint8_t         *result,
     uint64_t         offset,
     uint64_t         length
@@ -362,7 +362,7 @@ extern uint64_t sol_get_sysvar(
 extern uint64_t sol_get_processed_sibling_instruction(
     uint64_t   index,
     void      *meta,
-    CvlPubkey *program_id,
+    Pubkey *program_id,
     uint8_t   *data,
     void      *accounts
 );
@@ -373,7 +373,7 @@ extern uint64_t sol_get_processed_sibling_instruction(
  * @param vote_address Vote account pubkey, or NULL for total cluster stake
  * @return Active stake in lamports
  */
-extern uint64_t sol_get_epoch_stake(const CvlPubkey *vote_address);
+extern uint64_t sol_get_epoch_stake(const Pubkey *vote_address);
 
 /**
  * Abort the program immediately
@@ -391,4 +391,4 @@ extern void abort(void);
 extern void sol_panic_(const char *message, uint64_t len,
                        uint64_t line, uint64_t column);
 
-#endif /* CVL_SYSCALL_H */
+#endif /* SYSCALL_H */

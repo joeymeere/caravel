@@ -1,165 +1,191 @@
 import { expect } from "chai";
 import { LiteSVM, FailedTransactionMetadata, TransactionMetadata } from "litesvm";
 import {
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
+  address,
+  type Address,
+  AccountRole,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  createTransactionMessage,
+  generateKeyPair,
+  getAddressFromPublicKey,
+  getProgramDerivedAddress,
+  lamports,
+  pipe,
+  setTransactionMessageFeePayer,
+  signTransaction,
+  type Instruction,
+  type Transaction,
+} from "@solana/kit";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function sendAndConfirm(svm: LiteSVM, tx: Transaction, label?: string): TransactionMetadata {
+const LAMPORTS_PER_SOL = 1_000_000_000n;
+const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
+const PROGRAM_ID = address("33333333333333333333333333333333333333333333");
+
+async function sendAndConfirm(
+  svm: LiteSVM,
+  tx: Transaction,
+  label?: string,
+): Promise<TransactionMetadata> {
   const result = svm.sendTransaction(tx);
   if (result instanceof FailedTransactionMetadata) {
     throw new Error(`Transaction failed: ${result.toString()}`);
   }
-
-  result.logs().forEach(log => {
-    console.log(`      ${log}`);
-  });
+  result.logs().forEach((log) => console.log(`      ${log}`));
   if (label) {
     console.log(`      ${label}: ${result.computeUnitsConsumed()} CU`);
   }
   return result;
 }
 
+async function buildTx(
+  svm: LiteSVM,
+  feePayer: Address,
+  signerKeys: CryptoKeyPair[],
+  ix: Instruction,
+): Promise<Transaction> {
+  const msg = pipe(
+    createTransactionMessage({ version: "legacy" }),
+    (m) => setTransactionMessageFeePayer(feePayer, m),
+    (m) => svm.setTransactionMessageLifetimeUsingLatestBlockhash(m),
+    (m) => appendTransactionMessageInstruction(ix, m),
+  );
+  const compiled = compileTransaction(msg);
+  return await signTransaction(signerKeys, compiled);
+}
+
+function encodeAmount(disc: number, amount: bigint): Uint8Array {
+  const buf = new ArrayBuffer(9);
+  const view = new DataView(buf);
+  view.setUint8(0, disc);
+  view.setBigUint64(1, amount, true);
+  return new Uint8Array(buf);
+}
+
 describe("Vault Program", () => {
   const programPath = path.join(__dirname, "..", "build", "program.so");
-  const programId = Keypair.generate().publicKey;
 
+  let programId: Address;
   let svm: LiteSVM;
-  let user: Keypair;
-  let vaultPda: PublicKey;
-  let vaultBump: number;
+  let userKeys: CryptoKeyPair;
+  let userAddr: Address;
+  let vaultPda: Address;
 
-  const DEPOSIT_AMOUNT = BigInt(1 * LAMPORTS_PER_SOL);
-  const WITHDRAW_AMOUNT = BigInt(LAMPORTS_PER_SOL / 2);
+  const DEPOSIT_AMOUNT = lamports(1n * LAMPORTS_PER_SOL);
+  const WITHDRAW_AMOUNT = lamports(LAMPORTS_PER_SOL / 2n);
 
-  before(() => {
+  before(async () => {
     svm = new LiteSVM();
-    svm.addProgram(programId, fs.readFileSync(programPath));
+    svm.addProgram(PROGRAM_ID, fs.readFileSync(programPath));
 
-    user = Keypair.generate();
-    svm.airdrop(user.publicKey, BigInt(10 * LAMPORTS_PER_SOL));
+    userKeys = await generateKeyPair();
+    userAddr = await getAddressFromPublicKey(userKeys.publicKey);
+    svm.airdrop(userAddr, lamports(10n * LAMPORTS_PER_SOL));
 
-    [vaultPda, vaultBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("vault"), user.publicKey.toBuffer()],
-      programId
-    );
+    const { getAddressEncoder } = await import("@solana/kit");
+    const userPubkeyBytes = getAddressEncoder().encode(userAddr);
 
-    svm.setAccount(vaultPda, {
-      lamports: 0,
+    const [pdaAddr] = await getProgramDerivedAddress({
+      programAddress: PROGRAM_ID,
+      seeds: [new TextEncoder().encode("vault"), userPubkeyBytes],
+    });
+    vaultPda = pdaAddr;
+
+    svm.setAccount({
+      address: vaultPda,
+      lamports: lamports(BigInt(svm.minimumBalanceForRentExemption(0n))),
       data: new Uint8Array(0),
-      owner: programId,
+      programAddress: PROGRAM_ID,
       executable: false,
+      space: 0n,
     });
   });
 
-  it("deposits SOL into the vault (initial)", () => {
-    const data = Buffer.alloc(10);
-    data.writeUInt8(0, 0);
-    data.writeBigUInt64LE(DEPOSIT_AMOUNT, 1);
-    data.writeUInt8(vaultBump, 9);
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: user.publicKey, isSigner: true, isWritable: true },
-        { pubkey: vaultPda, isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  it("deposits SOL into the vault (initial)", async () => {
+    const ix: Instruction = {
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: userAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: vaultPda, role: AccountRole.WRITABLE },
+        { address: SYSTEM_PROGRAM, role: AccountRole.READONLY },
       ],
-      programId,
-      data,
-    });
+      data: encodeAmount(0, DEPOSIT_AMOUNT as unknown as bigint),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(user);
+    const tx = await buildTx(svm, userAddr, [userKeys], ix);
+    await sendAndConfirm(svm, tx, "deposit (initial)");
 
-    sendAndConfirm(svm, tx, "deposit (initial)");
-
-    const vaultAccount = svm.getAccount(vaultPda);
-    expect(vaultAccount).to.not.be.null;
-    expect(BigInt(vaultAccount!.lamports) >= DEPOSIT_AMOUNT).to.be.true;
+    const acct = svm.getAccount(vaultPda);
+    expect(acct.exists).to.be.true;
+    if (acct.exists) {
+      expect(BigInt(acct.lamports) >= BigInt(DEPOSIT_AMOUNT)).to.be.true;
+    }
   });
 
-  it("deposits SOL into the vault (subsequent)", () => {
-    const secondDeposit = BigInt(2 * LAMPORTS_PER_SOL);
-    const data = Buffer.alloc(10);
-    data.writeUInt8(0, 0);
-    data.writeBigUInt64LE(secondDeposit, 1);
-    data.writeUInt8(vaultBump, 9);
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: user.publicKey, isSigner: true, isWritable: true },
-        { pubkey: vaultPda, isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  it("deposits SOL into the vault (subsequent)", async () => {
+    const secondDeposit = lamports(2n * LAMPORTS_PER_SOL);
+    const ix: Instruction = {
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: userAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: vaultPda, role: AccountRole.WRITABLE },
+        { address: SYSTEM_PROGRAM, role: AccountRole.READONLY },
       ],
-      programId,
-      data,
-    });
+      data: encodeAmount(0, secondDeposit as unknown as bigint),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(user);
+    const tx = await buildTx(svm, userAddr, [userKeys], ix);
+    await sendAndConfirm(svm, tx, "deposit (subsequent)");
 
-    sendAndConfirm(svm, tx, "deposit (subsequent)");
-
-    const vaultAccount = svm.getAccount(vaultPda);
-    expect(BigInt(vaultAccount!.lamports) >= DEPOSIT_AMOUNT + secondDeposit).to.be.true;
+    const acct = svm.getAccount(vaultPda);
+    if (acct.exists) {
+      expect(
+        BigInt(acct.lamports) >=
+          BigInt(DEPOSIT_AMOUNT) + BigInt(secondDeposit),
+      ).to.be.true;
+    }
   });
 
-  it("withdraws SOL from the vault", () => {
-    const data = Buffer.alloc(10);
-    data.writeUInt8(1, 0);
-    data.writeBigUInt64LE(WITHDRAW_AMOUNT, 1);
-    data.writeUInt8(vaultBump, 9);
+  it("withdraws SOL from the vault", async () => {
+    const vaultBefore = svm.getBalance(vaultPda)!;
 
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: user.publicKey, isSigner: true, isWritable: true },
-        { pubkey: vaultPda, isSigner: false, isWritable: true },
+    const ix: Instruction = {
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: userAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: vaultPda, role: AccountRole.WRITABLE },
       ],
-      programId,
-      data,
-    });
+      data: encodeAmount(1, WITHDRAW_AMOUNT as unknown as bigint),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(user);
+    const tx = await buildTx(svm, userAddr, [userKeys], ix);
+    await sendAndConfirm(svm, tx, "withdraw");
 
-    const vaultBefore = BigInt(svm.getAccount(vaultPda)!.lamports);
-    sendAndConfirm(svm, tx, "withdraw");
-    const vaultAfter = BigInt(svm.getAccount(vaultPda)!.lamports);
-
-    expect(vaultBefore - vaultAfter).to.equal(WITHDRAW_AMOUNT);
+    const vaultAfter = svm.getBalance(vaultPda)!;
+    expect(BigInt(vaultBefore) - BigInt(vaultAfter)).to.equal(
+      BigInt(WITHDRAW_AMOUNT),
+    );
   });
 
-  it("rejects withdrawal from wrong authority", () => {
-    const wrongUser = Keypair.generate();
-    svm.airdrop(wrongUser.publicKey, BigInt(1 * LAMPORTS_PER_SOL));
+  it("rejects withdrawal from wrong authority", async () => {
+    const wrongKeys = await generateKeyPair();
+    const wrongAddr = await getAddressFromPublicKey(wrongKeys.publicKey);
+    svm.airdrop(wrongAddr, lamports(1n * LAMPORTS_PER_SOL));
 
-    const data = Buffer.alloc(10);
-    data.writeUInt8(1, 0);
-    data.writeBigUInt64LE(WITHDRAW_AMOUNT, 1);
-    data.writeUInt8(vaultBump, 9); // bump won't match for wrong user's derivation
-
-    const ix = new TransactionInstruction({
-      keys: [
-        { pubkey: wrongUser.publicKey, isSigner: true, isWritable: true },
-        { pubkey: vaultPda, isSigner: false, isWritable: true },
+    const ix: Instruction = {
+      programAddress: PROGRAM_ID,
+      accounts: [
+        { address: wrongAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: vaultPda, role: AccountRole.WRITABLE },
       ],
-      programId,
-      data,
-    });
+      data: encodeAmount(1, WITHDRAW_AMOUNT as unknown as bigint),
+    };
 
-    const tx = new Transaction().add(ix);
-    tx.recentBlockhash = svm.latestBlockhash();
-    tx.sign(wrongUser);
-
+    const tx = await buildTx(svm, wrongAddr, [wrongKeys], ix);
     const result = svm.sendTransaction(tx);
     expect(result).to.be.instanceOf(FailedTransactionMetadata);
   });

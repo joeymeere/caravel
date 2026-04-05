@@ -18,6 +18,8 @@ import {
 } from "@solana/spl-token";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function sendAndConfirm(svm: LiteSVM, tx: Transaction): void {
   const result = svm.sendTransaction(tx);

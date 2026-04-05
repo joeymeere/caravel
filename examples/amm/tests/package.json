@@ -5,15 +5,14 @@
     "test": "npx ts-mocha -p tsconfig.json ./*.test.ts"
   },
   "dependencies": {
-    "litesvm": "^0.3.0",
-    "@solana/web3.js": "^1.95.0",
-    "@solana/spl-token": "^0.4.0",
-    "chai": "^4.3.0",
-    "mocha": "^10.0.0",
-    "ts-mocha": "^10.0.0",
-    "typescript": "^5.0.0",
+    "@solana/kit": "^6.5.0",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^10.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "chai": "^4.3.0",
+    "litesvm": "^1.0.0",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.0.0"
   }
 }

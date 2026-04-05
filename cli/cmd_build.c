@@ -314,6 +314,29 @@ int cmd_build(int argc, char **argv) {
 
     cvl_mkdir_p(cfg.build_dir);
 
+    {
+        char marker[CVL_MAX_PATH];
+        snprintf(marker, sizeof(marker), "%s/.toolchain", cfg.build_dir);
+        FILE *mf = fopen(marker, "r");
+        if (mf) {
+            char prev[64] = "";
+            if (fgets(prev, sizeof(prev), mf)) {
+                size_t plen = strlen(prev);
+                while (plen > 0 && (prev[plen-1] == '\n' || prev[plen-1] == '\r'))
+                    prev[--plen] = '\0';
+            }
+            fclose(mf);
+            if (prev[0] && strcmp(prev, toolchain_label) != 0) {
+                printf("  Toolchain changed (%s -> %s), cleaning build dir...\n\n",
+                       prev, toolchain_label);
+                cmd_clean(0, NULL);
+                cvl_mkdir_p(cfg.build_dir);
+            }
+        }
+        mf = fopen(marker, "w");
+        if (mf) { fprintf(mf, "%s\n", toolchain_label); fclose(mf); }
+    }
+
     char sources[128][CVL_MAX_PATH];
     int nsrc = collect_sources(cfg.src_dir, "", sources, 128, 0);
     if (nsrc < 0) return 1;

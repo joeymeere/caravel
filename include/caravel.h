@@ -2,9 +2,9 @@
  * @brief Caravel SDK
  *
  * Compilation:
- *   - Define CVL_DEBUG before including to enable debug logging
- *   - Define CVL_NO_TOKEN to exclude SPL Token helpers
- *   - Define CVL_NO_SYSTEM to exclude System program helpers
+ *   - Define DEBUG before including to enable debug logging
+ *   - Define NO_TOKEN to exclude SPL Token helpers
+ *   - Define NO_SYSTEM to exclude System program helpers
  */
 
 #ifndef CARAVEL_H
@@ -28,15 +28,15 @@
 #include "caravel/cpi.h"
 #include "caravel/pda.h"
 
-#ifndef CVL_NO_HEAP
+#ifndef NO_HEAP
 #include "caravel/heap.h"
 #endif
 
-#ifndef CVL_NO_SYSTEM
+#ifndef NO_SYSTEM
 #include "caravel/system.h"
 #endif
 
-#ifndef CVL_NO_TOKEN
+#ifndef NO_TOKEN
 #include "caravel/token.h"
 #endif
 

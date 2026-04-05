@@ -4,7 +4,7 @@
 #include <caravel.h>
 
 typedef struct {
-    CvlPubkey authority;
+    Pubkey authority;
     uint8_t   bump;
 } VaultState;
 

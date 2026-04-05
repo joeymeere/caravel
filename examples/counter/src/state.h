@@ -3,10 +3,10 @@
 
 #include <caravel.h>
 
-/* @cvl:state CounterState */
+STATE(CounterState)
 typedef struct {
     uint64_t count;
-    CvlPubkey authority;
+    Pubkey authority;
 } CounterState;
 
 #endif

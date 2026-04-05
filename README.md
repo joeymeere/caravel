@@ -161,7 +161,7 @@ CVL_TRY(cvl_token_transfer_signed(
 | `caravel test` | Build, then run TypeScript tests via `npm test` |
 | `caravel deploy` | Deploy `build/program.so` via `solana program deploy` |
 | `caravel clean` | Remove the `build/` directory |
-| `caravel idl` | Generate Anchor-compatible `build/idl.json` from `@cvl:` annotations |
+| `caravel idl` | Generate Anchor-compatible `build/idl.json` from macro definitions |
 
 ## Compile Options
 
