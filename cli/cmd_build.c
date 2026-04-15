@@ -155,9 +155,9 @@ static int compile_platform_tools(const char *clang, const char *opt_level,
     char cmd[CVL_MAX_PATH * 3];
     snprintf(cmd, sizeof(cmd),
         "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
-        "%s -I%s -c %s/%s -o %s",
+        "%s -I%s -I%s -c %s/%s -o %s",
         clang, opt_level, debug_flags, inc,
-        src_dir, source, obj_out);
+        src_dir, src_dir, source, obj_out);
 
     printf("  [CC] %s/%s\n", src_dir, source);
     int rc = cvl_run_command(cmd);
