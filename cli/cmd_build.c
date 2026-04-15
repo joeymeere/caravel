@@ -362,7 +362,16 @@ int cmd_build(int argc, char **argv) {
     }
 
     const char *inc = getenv("CARAVEL_INCLUDE");
-    if (!inc) inc = "../../include";
+    char inc_buf[CVL_MAX_PATH];
+    if (!inc) {
+        inc = cvl_find_include(inc_buf, sizeof(inc_buf));
+        if (!inc) {
+            fprintf(stderr, "err: cannot locate SDK headers; "
+                            "set CARAVEL_INCLUDE or run 'make install' "
+                            "from the caravel cli/ directory\n");
+            return 1;
+        }
+    }
 
     char obj_files[128][CVL_MAX_PATH];
     char exports[64][CVL_MAX_NAME];

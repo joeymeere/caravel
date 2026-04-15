@@ -63,6 +63,21 @@ static inline int cvl_file_exists(const char *path) {
     return stat(path, &st) == 0;
 }
 
+static inline const char *cvl_find_include(char *buf, size_t bufsz) {
+    const char *home = getenv("HOME");
+    if (home) {
+        snprintf(buf, bufsz, "%s/.local/share/caravel/include", home);
+        if (cvl_file_exists(buf)) return buf;
+    }
+    if (cvl_file_exists("/usr/local/share/caravel/include"))
+        return "/usr/local/share/caravel/include";
+    if (home) {
+        snprintf(buf, bufsz, "%s/.local/share/caravel/include", home);
+        return buf;
+    }
+    return NULL;
+}
+
 static inline int cvl_run_command(const char *cmd) {
     printf("  > %s\n", cmd);
     return system(cmd);

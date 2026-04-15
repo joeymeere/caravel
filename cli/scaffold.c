@@ -82,7 +82,7 @@ int cvl_scaffold_project(const char *name) {
     printf("  [+] Caravel.toml\n");
 
     snprintf(path, sizeof(path), "%s/Makefile", name);
-    write_file_fmt(path, TPL_MAKEFILE, name, name);
+    write_file_fmt(path, TPL_MAKEFILE, name);
     printf("  [+] Makefile\n");
 
     snprintf(path, sizeof(path), "%s/src/entrypoint.c", name);

@@ -7,7 +7,7 @@ static const char *TPL_MAKEFILE =
 "BUILD_DIR := build\n"
 "\n"
 "# set CARAVEL_INCLUDE env var or adjust here\n"
-"CARAVEL_INCLUDE ?= ../../include\n"
+"CARAVEL_INCLUDE ?= $(HOME)/.local/share/caravel/include\n"
 "\n"
 "# set CLANG/LLD env vars to override\n"
 "CLANG ?= $(HOME)/.cache/solana/v1.51/platform-tools/llvm/bin/clang\n"

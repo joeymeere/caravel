@@ -1,4 +1,6 @@
 CC      := cc
+PREFIX  := $(HOME)/.local
+DATADIR := $(PREFIX)/share/caravel
 CFLAGS  := -O2 -Wall -Wextra -std=c11
 TARGET  := caravel
 
@@ -19,7 +21,7 @@ HDRS := cli.h       \
         templates/makefile.h   \
         templates/test.h
 
-.PHONY: all clean install
+.PHONY: all clean install uninstall
 
 all: $(TARGET)
 
@@ -30,5 +32,16 @@ clean:
 	rm -f $(TARGET)
 
 install: $(TARGET)
-	cp $(TARGET) /usr/local/bin/$(TARGET)
-	@echo "Installed to /usr/local/bin/$(TARGET)"
+	install -d $(PREFIX)/bin
+	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
+	install -d $(DATADIR)/include/caravel
+	install -m 644 ../include/caravel.h $(DATADIR)/include/
+	install -m 644 ../include/bpf.ld    $(DATADIR)/include/
+	install -m 644 ../include/caravel/*.h $(DATADIR)/include/caravel/
+	@echo "Installed $(TARGET) to $(PREFIX)/bin"
+	@echo "Installed SDK headers to $(DATADIR)/include"
+
+uninstall:
+	rm -f $(PREFIX)/bin/$(TARGET)
+	rm -rf $(DATADIR)
+	@echo "Uninstalled $(TARGET) and SDK headers"
