@@ -294,7 +294,7 @@ describe("AMM Program", () => {
     ]);
     await sendAndConfirm(svm, tx);
 
-    const INITIAL = BigInt(100_000_000);
+    const INITIAL = 10_000_000_000_000_000n;
     tx = await buildMultiIxTx(svm, userAddr, [userKeys], [
       mintToIx(mintAAddr, userTokenA, userAddr, INITIAL),
       mintToIx(mintBAddr, userTokenB, userAddr, INITIAL),
@@ -341,13 +341,13 @@ describe("AMM Program", () => {
     }
   });
 
-  it("adds initial liquidity (1M A + 4M B)", async () => {
+  it("adds initial liquidity (100T A + 400T B)", async () => {
     const buf = new ArrayBuffer(25);
     const view = new DataView(buf);
     view.setUint8(0, 1); // disc = 1 (add_liquidity)
-    view.setBigUint64(1, BigInt(1_000_000), true); // amount_a
-    view.setBigUint64(9, BigInt(4_000_000), true); // amount_b
-    view.setBigUint64(17, BigInt(0), true); // min_lp
+    view.setBigUint64(1, 100_000_000_000_000n, true); // amount_a
+    view.setBigUint64(9, 400_000_000_000_000n, true); // amount_b
+    view.setBigUint64(17, 0n, true); // min_lp
 
     const ix: Instruction = {
       programAddress: programId,
@@ -368,18 +368,17 @@ describe("AMM Program", () => {
     const tx = await buildTx(svm, userAddr, [userKeys], ix);
     await sendAndConfirm(svm, tx, "add_liquidity");
 
-    // LP minted = sqrt(1M * 4M) = 2,000,000
-    expect(readTokenBalance(svm, userLp)).to.equal(BigInt(2_000_000));
-    expect(readTokenBalance(svm, vaultA)).to.equal(BigInt(1_000_000));
-    expect(readTokenBalance(svm, vaultB)).to.equal(BigInt(4_000_000));
+    expect(readTokenBalance(svm, userLp)).to.equal(200_000_000_000_000n);
+    expect(readTokenBalance(svm, vaultA)).to.equal(100_000_000_000_000n);
+    expect(readTokenBalance(svm, vaultB)).to.equal(400_000_000_000_000n);
   });
 
-  it("swaps 100K A -> B", async () => {
+  it("swaps 10T A -> B", async () => {
     const buf = new ArrayBuffer(18);
     const view = new DataView(buf);
     view.setUint8(0, 3); // disc = 3 (swap)
-    view.setBigUint64(1, BigInt(100_000), true); // amount_in
-    view.setBigUint64(9, BigInt(0), true); // min_amount_out
+    view.setBigUint64(1, 10_000_000_000_000n, true); // amount_in
+    view.setBigUint64(9, 0n, true); // min_amount_out
     view.setUint8(17, 0); // direction = 0 (A->B)
 
     const ix: Instruction = {
@@ -399,17 +398,16 @@ describe("AMM Program", () => {
     const tx = await buildTx(svm, userAddr, [userKeys], ix);
     await sendAndConfirm(svm, tx, "swap A->B");
 
-    // out = (4M * 100K * 997) / (1M * 1000 + 100K * 997) = 362,644
-    expect(readTokenBalance(svm, vaultA)).to.equal(BigInt(1_100_000));
-    expect(readTokenBalance(svm, vaultB)).to.equal(BigInt(3_637_356));
+    expect(readTokenBalance(svm, vaultA)).to.equal(110_000_000_000_000n);
+    expect(readTokenBalance(svm, vaultB)).to.equal(363_735_564_244_795n);
   });
 
-  it("swaps 200K B -> A", async () => {
+  it("swaps 20T B -> A", async () => {
     const buf = new ArrayBuffer(18);
     const view = new DataView(buf);
     view.setUint8(0, 3);
-    view.setBigUint64(1, BigInt(200_000), true);
-    view.setBigUint64(9, BigInt(0), true);
+    view.setBigUint64(1, 20_000_000_000_000n, true);
+    view.setBigUint64(9, 0n, true);
     view.setUint8(17, 1); // direction = 1 (B->A)
 
     const ix: Instruction = {
@@ -429,18 +427,17 @@ describe("AMM Program", () => {
     const tx = await buildTx(svm, userAddr, [userKeys], ix);
     await sendAndConfirm(svm, tx, "swap B->A");
 
-    // out = (1.1M * 200K * 997) / (3,637,356 * 1000 + 200K * 997) = 57,168
-    expect(readTokenBalance(svm, vaultA)).to.equal(BigInt(1_042_832));
-    expect(readTokenBalance(svm, vaultB)).to.equal(BigInt(3_837_356));
+    expect(readTokenBalance(svm, vaultA)).to.equal(104_283_190_788_245n);
+    expect(readTokenBalance(svm, vaultB)).to.equal(383_735_564_244_795n);
   });
 
-  it("removes 500K LP", async () => {
+  it("removes 50T LP", async () => {
     const buf = new ArrayBuffer(25);
     const view = new DataView(buf);
     view.setUint8(0, 2); // disc = 2 (remove_liquidity)
-    view.setBigUint64(1, BigInt(500_000), true); // lp_amount
-    view.setBigUint64(9, BigInt(0), true); // min_a
-    view.setBigUint64(17, BigInt(0), true); // min_b
+    view.setBigUint64(1, 50_000_000_000_000n, true); // lp_amount
+    view.setBigUint64(9, 0n, true); // min_a
+    view.setBigUint64(17, 0n, true); // min_b
 
     const ix: Instruction = {
       programAddress: programId,
@@ -461,23 +458,17 @@ describe("AMM Program", () => {
     const tx = await buildTx(svm, userAddr, [userKeys], ix);
     await sendAndConfirm(svm, tx, "remove_liquidity");
 
-    // amount_a = 500K * 1,042,832 / 2M = 260,708
-    // amount_b = 500K * 3,837,356 / 2M = 959,339
-    expect(readTokenBalance(svm, vaultA)).to.equal(
-      BigInt(1_042_832 - 260_708)
-    );
-    expect(readTokenBalance(svm, vaultB)).to.equal(
-      BigInt(3_837_356 - 959_339)
-    );
-    expect(readMintSupply(svm, lpMintAddr)).to.equal(BigInt(1_500_000));
+    expect(readTokenBalance(svm, vaultA)).to.equal(78_212_393_091_184n);
+    expect(readTokenBalance(svm, vaultB)).to.equal(287_801_673_183_597n);
+    expect(readMintSupply(svm, lpMintAddr)).to.equal(150_000_000_000_000n);
   });
 
   it("rejects swap with excessive slippage", async () => {
     const buf = new ArrayBuffer(18);
     const view = new DataView(buf);
     view.setUint8(0, 3);
-    view.setBigUint64(1, BigInt(100_000), true);
-    view.setBigUint64(9, BigInt(999_999_999), true); // this aint gonna happen
+    view.setBigUint64(1, 10_000_000_000_000n, true);
+    view.setBigUint64(9, 999_999_999_999_999n, true); // this aint gonna happen
     view.setUint8(17, 0);
 
     const ix: Instruction = {

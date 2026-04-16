@@ -41,7 +41,8 @@ static int collect_sources(const char *base, const char *rel,
             if (n < 0) { closedir(dp); return -1; }
         } else if (S_ISREG(st.st_mode)) {
             size_t len = strlen(ent->d_name);
-            if (len > 2 && strcmp(ent->d_name + len - 2, ".c") == 0) {
+            if (len > 2 && (strcmp(ent->d_name + len - 2, ".c") == 0 ||
+                            strcmp(ent->d_name + len - 2, ".s") == 0)) {
                 if (rel[0])
                     snprintf(out[n], CVL_MAX_PATH, "%s/%s", rel, ent->d_name);
                 else
@@ -143,7 +144,8 @@ static int compile_platform_tools(const char *clang, const char *opt_level,
                                   const char *build_dir, char *obj_out) {
     char base[CVL_MAX_PATH];
     strncpy(base, source, CVL_MAX_PATH);
-    base[strlen(base) - 2] = '\0'; /* strip .c */
+    size_t slen = strlen(base);
+    if (slen > 2) base[slen - 2] = '\0';
 
     snprintf(obj_out, CVL_MAX_PATH, "%s/%s.o", build_dir, base);
 
@@ -152,14 +154,22 @@ static int compile_platform_tools(const char *clang, const char *opt_level,
     char *slash = strrchr(obj_dir, '/');
     if (slash) { *slash = '\0'; cvl_mkdir_p(obj_dir); }
 
-    char cmd[CVL_MAX_PATH * 3];
-    snprintf(cmd, sizeof(cmd),
-        "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
-        "%s -I%s -c %s/%s -o %s",
-        clang, opt_level, debug_flags, inc,
-        src_dir, source, obj_out);
+    int is_asm = (strlen(source) > 2 &&
+                  strcmp(source + strlen(source) - 2, ".s") == 0);
 
-    printf("  [CC] %s/%s\n", src_dir, source);
+    char cmd[CVL_MAX_PATH * 3];
+    if (is_asm)
+        snprintf(cmd, sizeof(cmd),
+            "%s --target=sbf -c %s/%s -o %s",
+            clang, src_dir, source, obj_out);
+    else
+        snprintf(cmd, sizeof(cmd),
+            "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
+            "%s -I%s -I%s -c %s/%s -o %s",
+            clang, opt_level, debug_flags, inc,
+            src_dir, src_dir, source, obj_out);
+
+    printf("  [%s] %s/%s\n", is_asm ? "AS" : "CC", src_dir, source);
     int rc = cvl_run_command(cmd);
     if (rc != 0)
         fprintf(stderr, "\nerr: compilation failed for %s (exit %d)\n",
@@ -341,7 +351,7 @@ int cmd_build(int argc, char **argv) {
     int nsrc = collect_sources(cfg.src_dir, "", sources, 128, 0);
     if (nsrc < 0) return 1;
     if (nsrc == 0) {
-        fprintf(stderr, "err: no .c files found in '%s/'\n", cfg.src_dir);
+        fprintf(stderr, "err: no source files found in '%s/'\n", cfg.src_dir);
         return 1;
     }
     printf("  Found %d source file(s)\n\n", nsrc);
@@ -378,15 +388,24 @@ int cmd_build(int argc, char **argv) {
     int nobj = 0, nexports = 0;
 
     for (int i = 0; i < nsrc; i++) {
+        size_t slen = strlen(sources[i]);
+        int is_asm = (slen > 2 && strcmp(sources[i] + slen - 2, ".s") == 0);
+
         int rc;
-        if (toolchain == TOOLCHAIN_UPSTREAM)
+        if (toolchain == TOOLCHAIN_UPSTREAM) {
+            if (is_asm) {
+                printf("  [--] %s/%s (skipped, upstream uses LLVM IR)\n",
+                       cfg.src_dir, sources[i]);
+                continue;
+            }
             rc = compile_upstream(clang, opt_level, debug_flags, inc,
                     cfg.src_dir, sources[i], cfg.build_dir,
                     obj_files[nobj], exports, &nexports);
-        else
+        } else {
             rc = compile_platform_tools(clang, opt_level, debug_flags, inc,
                     cfg.src_dir, sources[i], cfg.build_dir,
                     obj_files[nobj]);
+        }
         if (rc != 0) return 1;
         nobj++;
     }

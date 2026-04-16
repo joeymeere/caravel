@@ -32,12 +32,12 @@ clean:
 	rm -f $(TARGET)
 
 install: $(TARGET)
-	install -d $(PREFIX)/bin
-	install -m 755 $(TARGET) $(PREFIX)/bin/$(TARGET)
-	install -d $(DATADIR)/include/caravel
-	install -m 644 ../include/caravel.h $(DATADIR)/include/
-	install -m 644 ../include/bpf.ld    $(DATADIR)/include/
-	install -m 644 ../include/caravel/*.h $(DATADIR)/include/caravel/
+	@mkdir -p $(PREFIX)/bin $(DATADIR)/include/caravel
+	cp -f $(TARGET) $(PREFIX)/bin/$(TARGET)
+	chmod 755 $(PREFIX)/bin/$(TARGET)
+	cp -f ../include/caravel.h $(DATADIR)/include/
+	cp -f ../include/bpf.ld    $(DATADIR)/include/
+	cp -f ../include/caravel/*.h $(DATADIR)/include/caravel/
 	@echo "Installed $(TARGET) to $(PREFIX)/bin"
 	@echo "Installed SDK headers to $(DATADIR)/include"
 
