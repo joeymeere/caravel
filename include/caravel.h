@@ -40,18 +40,4 @@
 #include "caravel/token.h"
 #endif
 
-/**
- * Embed a `.s` file containing sBPF assembly into the current translation unit
- *
- * The file must define its own `.globl` / `.type` directives. Declare matching
- * `extern` prototypes in C so the linker can resolve calls to the symbols.
- *
- * @note platform-tools toolchain only
- *
- * @code
- *   INCLUDE_ASM("ops.s");
- *   extern uint64_t mul_div_u64(uint64_t a, uint64_t b, uint64_t c);
- */
-#define INCLUDE_ASM(path) __asm__(".include \"" path "\"")
-
 #endif /* CARAVEL_H */

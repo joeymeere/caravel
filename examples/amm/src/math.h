@@ -3,6 +3,9 @@
 
 #include <caravel.h>
 
+extern uint64_t div_wide(uint64_t hi, uint64_t lo, uint64_t d);
+extern uint64_t mul_div_u64(uint64_t a, uint64_t b, uint64_t c);
+
 static inline void mul_wide(uint64_t a, uint64_t b,
                             uint64_t *hi, uint64_t *lo) {
     uint64_t a_lo = a & 0xFFFFFFFF;
@@ -19,9 +22,6 @@ static inline void mul_wide(uint64_t a, uint64_t b,
     *lo = (p0 & 0xFFFFFFFF) | (mid << 32);
     *hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
 }
-
-extern uint64_t div_wide(uint64_t hi, uint64_t lo, uint64_t d);
-extern uint64_t mul_div_u64(uint64_t a, uint64_t b, uint64_t c);
 
 static inline uint64_t isqrt_wide(uint64_t hi, uint64_t lo) {
     if (hi == 0 && lo == 0) return 0;
