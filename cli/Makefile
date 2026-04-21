@@ -12,7 +12,8 @@ SRCS := main.c      \
         cmd_test.c  \
         cmd_deploy.c\
         cmd_clean.c \
-        cmd_idl.c
+        cmd_idl.c   \
+        cmd_dump.c
 
 HDRS := cli.h       \
         config.h    \

@@ -71,8 +71,8 @@ static int version_cmp(const char *a, const char *b) {
     return 0;
 }
 
-static const char *find_tool(const char *env_var, const char *tool_name,
-                              char *buf, size_t bufsz) {
+const char *cvl_find_tool(const char *env_var, const char *tool_name,
+                           char *buf, size_t bufsz) {
     const char *val = getenv(env_var);
     if (val) return val;
 
@@ -367,8 +367,8 @@ int cmd_build(int argc, char **argv) {
         linker = getenv("CVL_SBPF_LINKER");
         if (!linker) linker = "sbpf-linker";
     } else {
-        clang = find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
-        lld = find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
+        clang = cvl_find_tool("SOLANA_CLANG", "clang", clang_buf, sizeof(clang_buf));
+        lld = cvl_find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
     }
 
     const char *inc = getenv("CARAVEL_INCLUDE");
