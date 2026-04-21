@@ -38,6 +38,7 @@ install: $(TARGET)
 	chmod 755 $(PREFIX)/bin/$(TARGET)
 	cp -f ../include/caravel.h $(DATADIR)/include/
 	cp -f ../include/bpf.ld    $(DATADIR)/include/
+	cp -f ../include/rt.s      $(DATADIR)/include/
 	cp -f ../include/caravel/*.h $(DATADIR)/include/caravel/
 	@echo "Installed $(TARGET) to $(PREFIX)/bin"
 	@echo "Installed SDK headers to $(DATADIR)/include"

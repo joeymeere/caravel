@@ -410,6 +410,23 @@ int cmd_build(int argc, char **argv) {
         nobj++;
     }
 
+    if (toolchain == TOOLCHAIN_PLATFORM_TOOLS) {
+        char rt_src[CVL_MAX_PATH];
+        snprintf(rt_src, sizeof(rt_src), "%s/rt.s", inc);
+        if (cvl_file_exists(rt_src)) {
+            snprintf(obj_files[nobj], CVL_MAX_PATH, "%s/rt.o", cfg.build_dir);
+            char cmd[CVL_MAX_PATH * 3];
+            snprintf(cmd, sizeof(cmd), "%s --target=sbf -c %s -o %s",
+                     clang, rt_src, obj_files[nobj]);
+            printf("  [AS] rt.s\n");
+            if (cvl_run_command(cmd) != 0) {
+                fprintf(stderr, "\nerr: failed to assemble rt.s\n");
+                return 1;
+            }
+            nobj++;
+        }
+    }
+
     printf("\n  [LD] %s/program.so\n", cfg.build_dir);
 
     int rc;
