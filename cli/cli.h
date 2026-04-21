@@ -34,10 +34,14 @@ int cmd_test(int argc, char **argv);
 int cmd_deploy(int argc, char **argv);
 int cmd_clean(int argc, char **argv);
 int cmd_idl(int argc, char **argv);
+int cmd_dump(int argc, char **argv);
 
 int cvl_config_load(const char *path, CvlConfig *cfg);
 
 int cvl_scaffold_project(const char *name);
+
+const char *cvl_find_tool(const char *env_var, const char *tool_name,
+                          char *buf, size_t bufsz);
 
 static inline int cvl_mkdir_p(const char *path) {
     char tmp[CVL_MAX_PATH];

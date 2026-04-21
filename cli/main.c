@@ -8,6 +8,7 @@
  *   deploy        Deploy program to a Solana cluster
  *   clean         Remove build artifacts
  *   idl           Generate Anchor-compatible IDL JSON
+ *   dump          Disassemble the built program
  */
 
 #include "cli.h"
@@ -26,6 +27,7 @@ static void print_usage(void) {
         "    deploy        Deploy to Solana cluster\n"
         "    clean         Remove build artifacts\n"
         "    idl           Generate IDL (build/idl.json)\n"
+        "    dump          Disassemble the built program\n"
         "\n"
         "  Build options:\n"
         "    --toolchain=<name>  platform-tools (default), upstream\n"
@@ -66,6 +68,7 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "deploy") == 0) return cmd_deploy(sub_argc, sub_argv);
     if (strcmp(cmd, "clean") == 0)  return cmd_clean(sub_argc, sub_argv);
     if (strcmp(cmd, "idl") == 0)    return cmd_idl(sub_argc, sub_argv);
+    if (strcmp(cmd, "dump") == 0)   return cmd_dump(sub_argc, sub_argv);
 
     fprintf(stderr, "err: unknown command '%s'\n", cmd);
     print_usage();
