@@ -77,6 +77,11 @@ static ArgsType *g_cur_args_type;
 static char g_files[MAX_FILES][CVL_MAX_PATH];
 static int  g_num_files;
 
+static bool is_ident_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9') || c == '_';
+}
+
 static void snake_to_camel(const char *snake, char *out, int max) {
     int j = 0;
     bool cap = false;
@@ -205,9 +210,9 @@ static void parse_line(const char *raw) {
             IdlAccount *acc = &g_temp_accounts[g_num_temp_accounts++];
             memset(acc, 0, sizeof(*acc));
             strncpy(acc->name, name, CVL_MAX_NAME - 1);
-            acc->is_writable = (strstr(flags, "CVL_WRITABLE") != NULL);
-            acc->is_signer   = (strstr(flags, "CVL_SIGNER")   != NULL);
-            acc->is_program  = (strstr(flags, "CVL_PROGRAM")  != NULL);
+            acc->is_writable = (strstr(flags, "WRITABLE") != NULL);
+            acc->is_signer   = (strstr(flags, "SIGNER")   != NULL);
+            acc->is_program  = (strstr(flags, "PROGRAM")  != NULL);
             const char *addr = known_program_address(name);
             if (addr) strncpy(acc->address, addr, 63);
         }
@@ -270,9 +275,12 @@ static void parse_line(const char *raw) {
         return;
     }
 
-    if (strstr(line, "CVL_STATE(") && !strstr(line, "#define")) {
+    char *state_match = strstr(line, "STATE(");
+    if (state_match
+        && (state_match == line || !is_ident_char(state_match[-1]))
+        && !strstr(line, "#define")) {
         if (g_num_states >= MAX_STATES) return;
-        char *p = strstr(line, "CVL_STATE(") + 10;
+        char *p = state_match + 6;
         while (*p == ' ' || *p == '\t') p++;
 
         IdlState *st = &g_states[g_num_states++];
@@ -289,11 +297,13 @@ static void parse_line(const char *raw) {
         return;
     }
 
-    char *ix_match = strstr(line, "CVL_IX(");
-    if (ix_match && !strstr(line, "#define")
-        && !strstr(line, "_CVL_IX")
-        && !strstr(line, "CVL_IX_DATA")) {
-        char *p = ix_match + 7;
+    char *ix_match = strstr(line, "IX(");
+    if (ix_match
+        && (ix_match == line || !is_ident_char(ix_match[-1]))
+        && !strstr(line, "#define")
+        && !strstr(line, "_IX_")
+        && !strstr(line, "IX_DATA")) {
+        char *p = ix_match + 3;
         while (*p == ' ' || *p == '\t') p++;
 
         int disc = atoi(p);
@@ -437,7 +447,7 @@ static void parse_line(const char *raw) {
         return;
     }
 
-    if (strstr(line, "#define") && strstr(line, "CVL_ERROR_CUSTOM(")) {
+    if (strstr(line, "#define") && strstr(line, "ERROR_CUSTOM(")) {
         char *p = strstr(line, "#define") + 7;
         while (*p == ' ' || *p == '\t') p++;
 
@@ -447,12 +457,15 @@ static void parse_line(const char *raw) {
             macro[i++] = *p++;
         macro[i] = '\0';
 
-        char *num_p = strstr(line, "CVL_ERROR_CUSTOM(") + 17;
+        char *num_p = strstr(line, "ERROR_CUSTOM(") + 13;
         int n = atoi(num_p);
 
         char *err_part = strstr(macro, "_ERROR_");
-        if (!err_part) return;
-        err_part += 7;
+        if (err_part) { err_part += 7; }
+        else if ((err_part = strstr(macro, "_ERR_")) != NULL) { err_part += 5; }
+        else if (strncmp(macro, "ERROR_", 6) == 0) { err_part = macro + 6; }
+        else if (strncmp(macro, "ERR_", 4) == 0) { err_part = macro + 4; }
+        else return;
 
         if (g_num_errors >= MAX_ERRORS) return;
         IdlError *err = &g_errors[g_num_errors++];
@@ -468,7 +481,7 @@ static void parse_line(const char *raw) {
         return;
     }
 
-    if (strstr(line, "CVL_DEFINE_ACCOUNTS(")) {
+    if (strstr(line, "DEFINE_ACCOUNTS(")) {
         for (int pi = 0; pi < g_num_pending; pi++) {
             IdlInstruction *ix = &g_instructions[g_pending_ix[pi]];
             for (int a = 0; a < g_num_temp_accounts && a < MAX_ACCOUNTS; a++)
