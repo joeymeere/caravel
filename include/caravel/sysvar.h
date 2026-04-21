@@ -78,8 +78,8 @@ typedef struct {
     uint16_t         data_len;
 } LoadedInstruction;
 
-/* is_signer + is_writable + pubkey */
-#define _IX_ACCOUNT_META_SIZE 34
+/* flag_byte + pubkey */
+#define _IX_ACCOUNT_META_SIZE 33
 
 #define ASSERT_INSTRUCTIONS_SYSVAR(acc) \
     do { \
@@ -150,7 +150,7 @@ static inline uint64_t instructions_get(
     ix->accounts_len = READ_U16(ptr);
     ptr += 2;
 
-    /* accounts array (34 bytes each: is_signer + is_writable + 32-byte pubkey) */
+    /* accounts array (33 bytes each: flag_byte + 32-byte pubkey) */
     ix->accounts_raw = ptr;
     ptr += (uint32_t)ix->accounts_len * _IX_ACCOUNT_META_SIZE;
 
