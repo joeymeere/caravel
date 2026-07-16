@@ -457,4 +457,29 @@ create_associated_token_account(AccountInfo *payer, AccountInfo *ata,
   return invoke(&ix, accounts, accounts_len);
 }
 
+static inline uint64_t create_associated_token_account_idempotent(
+    AccountInfo *payer, AccountInfo *ata, AccountInfo *owner, AccountInfo *mint,
+    AccountInfo *accounts, int accounts_len) {
+
+  AccountMeta metas[6] = {
+      meta_writable_signer(payer->key),
+      meta_writable(ata->key),
+      meta_readonly(owner->key),
+      meta_readonly(mint->key),
+      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+  };
+
+  uint8_t ix_data[1] = {1};
+
+  Instruction ix = {
+      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+      .accounts = metas,
+      .accounts_len = 6,
+      .data = ix_data,
+      .data_len = 1,
+  };
+  return invoke(&ix, accounts, accounts_len);
+}
+
 #endif /* TOKEN_H */
