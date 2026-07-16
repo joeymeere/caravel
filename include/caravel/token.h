@@ -433,10 +433,25 @@ static inline uint64_t token_sync_native(
     return invoke(&ix, accounts, accounts_len);
 }
 
-static inline uint64_t
-create_associated_token_account(AccountInfo *payer, AccountInfo *ata,
-                                AccountInfo *owner, AccountInfo *mint,
-                                AccountInfo *accounts, int accounts_len) {
+/**
+ * Create an associated token account for the given owner and mint.
+ *
+ * @param payer The account paying for the ATA creation (writable signer)
+ * @param ata The associated token account to create (writable)
+ * @param owner The owner of the associated token account
+ * @param mint The mint of the associated token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return SUCCESS on success, error code on failure
+ */
+static inline uint64_t create_associated_token_account(
+    AccountInfo *payer,
+    AccountInfo *ata,
+    AccountInfo *owner,
+    AccountInfo *mint,
+    AccountInfo *accounts,
+    int accounts_len
+) {
 
   AccountMeta metas[6] = {
       meta_writable_signer(payer->key),
@@ -454,12 +469,29 @@ create_associated_token_account(AccountInfo *payer, AccountInfo *ata,
       .data = (uint8_t *)NULL,
       .data_len = 0,
   };
+
   return invoke(&ix, accounts, accounts_len);
 }
 
+/**
+ * Create an associated token account, or no-op if it already exists.
+ *
+ * @param payer The account paying for the ATA creation (writable signer)
+ * @param ata The associated token account to create (writable)
+ * @param owner The owner of the associated token account
+ * @param mint The mint of the associated token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return SUCCESS on success, error code on failure
+ */
 static inline uint64_t create_associated_token_account_idempotent(
-    AccountInfo *payer, AccountInfo *ata, AccountInfo *owner, AccountInfo *mint,
-    AccountInfo *accounts, int accounts_len) {
+    AccountInfo *payer,
+    AccountInfo *ata,
+    AccountInfo *owner,
+    AccountInfo *mint,
+    AccountInfo *accounts,
+    int accounts_len
+) {
 
   AccountMeta metas[6] = {
       meta_writable_signer(payer->key),
@@ -479,7 +511,98 @@ static inline uint64_t create_associated_token_account_idempotent(
       .data = ix_data,
       .data_len = 1,
   };
+
   return invoke(&ix, accounts, accounts_len);
+}
+
+/**
+ * Create an associated token account with a PDA as the payer.
+ *
+ * @param payer The PDA paying for the ATA creation (writable signer)
+ * @param ata The associated token account to create (writable)
+ * @param owner The owner of the associated token account
+ * @param mint The mint of the associated token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds for the PDA payer
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return SUCCESS on success, error code on failure
+ */
+static inline uint64_t create_associated_token_account_signed(
+    AccountInfo *payer,
+    AccountInfo *ata,
+    AccountInfo *owner,
+    AccountInfo *mint,
+    AccountInfo *accounts,
+    int accounts_len,
+    const SignerSeeds *signer_seeds,
+    int signer_seeds_len
+) {
+
+  AccountMeta metas[6] = {
+      meta_writable_signer(payer->key),
+      meta_writable(ata->key),
+      meta_readonly(owner->key),
+      meta_readonly(mint->key),
+      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+  };
+
+  Instruction ix = {
+      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+      .accounts = metas,
+      .accounts_len = 6,
+      .data = (uint8_t *)NULL,
+      .data_len = 0,
+  };
+
+  return invoke_signed(&ix, accounts, accounts_len, signer_seeds, signer_seeds_len);
+}
+
+/**
+ * Create an associated token account with a PDA as the payer, or no-op if it already exists.
+ *
+ * @param payer The PDA paying for the ATA creation (writable signer)
+ * @param ata The associated token account to create (writable)
+ * @param owner The owner of the associated token account
+ * @param mint The mint of the associated token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds for the PDA payer
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return SUCCESS on success, error code on failure
+ */
+static inline uint64_t create_associated_token_account_idempotent_signed(
+    AccountInfo *payer,
+    AccountInfo *ata,
+    AccountInfo *owner,
+    AccountInfo *mint,
+    AccountInfo *accounts,
+    int accounts_len,
+    const SignerSeeds *signer_seeds,
+    int signer_seeds_len
+) {
+
+  uint8_t ix_data[1] = {1};
+
+  AccountMeta metas[6] = {
+      meta_writable_signer(payer->key),
+      meta_writable(ata->key),
+      meta_readonly(owner->key),
+      meta_readonly(mint->key),
+      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+  };
+
+  Instruction ix = {
+      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+      .accounts = metas,
+      .accounts_len = 6,
+      .data = ix_data,
+      .data_len = 1,
+  };
+
+  return invoke_signed(&ix, accounts, accounts_len, signer_seeds, signer_seeds_len);
 }
 
 #endif /* TOKEN_H */
