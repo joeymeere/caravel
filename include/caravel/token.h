@@ -58,6 +58,97 @@ typedef struct __attribute__((packed)) {
 #define MINT_ACCOUNT(acc) ((MintAccount *)((acc)->data))
 
 /**
+ * Initialize a token account for a given mint and owner.
+ *
+ * The account must already be allocated and owned by the token program
+ * (e.g. via a system program create_account CPI) before calling this.
+ *
+ * @param token_account The token account to initialize
+ * @param mint The mint this token account holds
+ * @param owner The owner of the token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @return SUCCESS on success, ERROR_INVALID_ARGUMENT on failure
+ *
+ * @code TOKEN_INITIALIZE_ACCOUNT(token_account, mint, owner, accounts, accounts_len);
+ */
+static inline uint64_t token_initialize_account(
+    AccountInfo *token_account,
+    AccountInfo *mint,
+    AccountInfo *owner,
+    AccountInfo *accounts,
+    int accounts_len
+) {
+    uint8_t ix_data[1] = { TOKEN_IX_INITIALIZE_ACCOUNT };
+
+    AccountMeta metas[4] = {
+        meta_writable(token_account->key),
+        meta_readonly(mint->key),
+        meta_readonly(owner->key),
+        meta_readonly((Pubkey *)&RENT_SYSVAR_ID),
+    };
+
+    Instruction ix = {
+        .program_id   = (Pubkey *)&TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 4,
+        .data         = ix_data,
+        .data_len     = sizeof(ix_data),
+    };
+
+    return invoke(&ix, accounts, accounts_len);
+}
+
+/**
+ * Initialize a token account, invoking with PDA signer seeds.
+ *
+ * Provided for symmetry with the other signed helpers. Note that
+ * InitializeAccount takes no signer accounts, so the seeds are not
+ * consumed by the token program itself. Use this only when the
+ * surrounding CPI context requires signed invocation.
+ *
+ * @param token_account The token account to initialize
+ * @param mint The mint this token account holds
+ * @param owner The owner of the token account
+ * @param accounts The accounts to use
+ * @param accounts_len The length of the accounts array
+ * @param signer_seeds The signer seeds to use
+ * @param signer_seeds_len The length of the signer seeds array
+ * @return SUCCESS on success, ERROR_INVALID_ARGUMENT on failure
+ *
+ * @code TOKEN_INITIALIZE_ACCOUNT_SIGNED(token_account, mint, owner, accounts, accounts_len, signer_seeds, signer_seeds_len);
+ */
+static inline uint64_t token_initialize_account_signed(
+    AccountInfo *token_account,
+    AccountInfo *mint,
+    AccountInfo *owner,
+    AccountInfo *accounts,
+    int accounts_len,
+    const SignerSeeds *signer_seeds,
+    int signer_seeds_len
+) {
+    uint8_t ix_data[1] = { TOKEN_IX_INITIALIZE_ACCOUNT };
+
+    AccountMeta metas[4] = {
+        meta_writable(token_account->key),
+        meta_readonly(mint->key),
+        meta_readonly(owner->key),
+        meta_readonly((Pubkey *)&RENT_SYSVAR_ID),
+    };
+
+    Instruction ix = {
+        .program_id   = (Pubkey *)&TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 4,
+        .data         = ix_data,
+        .data_len     = sizeof(ix_data),
+    };
+
+    return invoke_signed(&ix, accounts, accounts_len,
+                              signer_seeds, signer_seeds_len);
+}
+
+/**
  * Transfer tokens from one token account to another.
  *
  * @param source The source token account to transfer from
