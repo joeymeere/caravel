@@ -1,5 +1,6 @@
 #include "cli.h"
 #include "config.h"
+#include <ctype.h>
 
 typedef enum {
     TOOLCHAIN_PLATFORM_TOOLS,
@@ -15,16 +16,25 @@ typedef enum {
 
 #define SBF_V3_MIN_PT_VERSION 153
 
-static int platform_tools_version(const char *path) {
+static int pt_ver(const char *path) {
     const char *marker = strstr(path, "/solana/v");
     if (!marker) return -1;
     const char *p = marker + strlen("/solana/v");
+
+    if (!isdigit((unsigned char)*p)) return -1;
+    errno = 0;
     char *end;
-    long maj = strtol(p, &end, 10);
-    if (end == p || *end != '.') return -1;
+    unsigned long maj = strtoul(p, &end, 10);
+    if (errno != 0 || *end != '.') return -1;
+
     p = end + 1;
-    long min = strtol(p, &end, 10);
-    if (end == p) return -1;
+    if (!isdigit((unsigned char)*p)) return -1;
+    errno = 0;
+    unsigned long min = strtoul(p, &end, 10);
+    if (errno != 0) return -1;
+    if (*end != '\0' && *end != '/') return -1;
+
+    if (maj > 999 || min > 99) return -1;
     return (int)(maj * 100 + min);
 }
 
@@ -432,7 +442,7 @@ int cmd_build(int argc, char **argv) {
     }
 
     if (sbf_ver == SBF_V3 && toolchain == TOOLCHAIN_PLATFORM_TOOLS) {
-        int ptv = platform_tools_version(clang);
+        int ptv = pt_ver(clang);
         if (ptv >= 0 && ptv < SBF_V3_MIN_PT_VERSION) {
             fprintf(stderr,
                 "err: --sbf-ver=v3 requires platform-tools >= v1.53 "
