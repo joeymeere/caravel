@@ -14,7 +14,7 @@ static const char *TPL_PACKAGE_JSON =
 "    \"@types/mocha\": \"^10.0.0\",\n"
 "    \"@types/node\": \"^20.0.0\",\n"
 "    \"chai\": \"^4.3.0\",\n"
-"    \"litesvm\": \"^1.0.0\",\n"
+"    \"litesvm\": \"^1.4.1\",\n"
 "    \"mocha\": \"^10.0.0\",\n"
 "    \"ts-mocha\": \"^10.0.0\",\n"
 "    \"typescript\": \"^5.0.0\"\n"

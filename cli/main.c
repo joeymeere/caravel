@@ -30,6 +30,8 @@ static void print_usage(void) {
         "    dump          Disassemble the built program\n"
         "\n"
         "  Build options:\n"
+        "    --sbf-ver=<v>     SBPF version: v0 (default), v1, v2, v3\n"
+        "                      (v3 requires platform-tools >= v1.53)\n"
         "    --toolchain=<name>  platform-tools (default), upstream\n"
         "    --debug           Debug build with symbols\n"
         "    --fast            Fast build (-O1)\n"

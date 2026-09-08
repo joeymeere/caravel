@@ -38,7 +38,7 @@ int cmd_dump(int argc, char **argv);
 
 int cvl_config_load(const char *path, CvlConfig *cfg);
 
-int cvl_scaffold_project(const char *name);
+int cvl_scaffold_project(const char *name, const char *sbf_ver);
 
 const char *cvl_find_tool(const char *env_var, const char *tool_name,
                           char *buf, size_t bufsz);
