@@ -10,51 +10,64 @@
  * args r1-r5, and result in r0
  */
 #ifdef CVL_STATIC_SYSCALLS
+
+/* returning syscall, no args, result cast from r0 */
 #define CVL_SYS_R0(ret, name, h) \
     static inline ret name(void){ register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h):"memory"); return (ret)_o; }
+/* returning syscall, 1 arg in r1, result cast from r0 */
 #define CVL_SYS_R1(ret, name, h, t1) \
     static inline ret name(t1 a1){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1):"memory"); return (ret)_o; }
+/* returning syscall, 2 args in r1-r2, result cast from r0 */
 #define CVL_SYS_R2(ret, name, h, t1, t2) \
     static inline ret name(t1 a1, t2 a2){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2):"memory"); return (ret)_o; }
+/* returning syscall, 3 args in r1-r3, result cast from r0 */
 #define CVL_SYS_R3(ret, name, h, t1, t2, t3) \
     static inline ret name(t1 a1, t2 a2, t3 a3){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
         register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3):"memory"); return (ret)_o; }
+/* returning syscall, 4 args in r1-r4, result cast from r0 */
 #define CVL_SYS_R4(ret, name, h, t1, t2, t3, t4) \
     static inline ret name(t1 a1, t2 a2, t3 a3, t4 a4){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
         register uint64_t _4 __asm__("r4")=(uint64_t)(a4); register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4):"memory"); return (ret)_o; }
+/* returning syscall, 5 args in r1-r5, result cast from r0 */
 #define CVL_SYS_R5(ret, name, h, t1, t2, t3, t4, t5) \
     static inline ret name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
         register uint64_t _4 __asm__("r4")=(uint64_t)(a4); register uint64_t _5 __asm__("r5")=(uint64_t)(a5); \
         register uint64_t _o __asm__("r0"); \
         __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4),"r"(_5):"memory"); return (ret)_o; }
+/* void syscall, no args */
 #define CVL_SYS_V0(name, h) \
     static inline void name(void){ __asm__ volatile("call %[__h]"::[__h]"i"(h):"r0","memory"); }
+/* void syscall, 1 arg in r1 */
 #define CVL_SYS_V1(name, h, t1) \
     static inline void name(t1 a1){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1):"r0","memory"); }
+/* void syscall, 2 args in r1-r2 */
 #define CVL_SYS_V2(name, h, t1, t2) \
     static inline void name(t1 a1, t2 a2){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); \
         __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2):"r0","memory"); }
+/* void syscall, 3 args in r1-r3 */
 #define CVL_SYS_V3(name, h, t1, t2, t3) \
     static inline void name(t1 a1, t2 a2, t3 a3){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
         __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3):"r0","memory"); }
+/* void syscall, 4 args in r1-r4 */
 #define CVL_SYS_V4(name, h, t1, t2, t3, t4) \
     static inline void name(t1 a1, t2 a2, t3 a3, t4 a4){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
         register uint64_t _4 __asm__("r4")=(uint64_t)(a4); \
         __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4):"r0","memory"); }
+/* void syscall, 5 args in r1-r5 */
 #define CVL_SYS_V5(name, h, t1, t2, t3, t4, t5) \
     static inline void name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
         register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
