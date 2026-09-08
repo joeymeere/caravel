@@ -1,12 +1,12 @@
 # Caravel
 
-A C framework/toolkit for building Solana programs
+A C library for building efficient Solana programs
 
 ## Prerequisites
 
-- **Platform Tools** — install via `solana-install` or download from the [Solana releases](https://github.com/anza-xyz/agave/releases).
+- **Platform Tools** — install via `solana-install` or download from the [Agave releases](https://github.com/anza-xyz/agave/releases).
 - **Node.js** (v18+, for testing)
-- **Solana CLI**
+- **Agave CLI**
 
 ## Quick Start
 
@@ -135,7 +135,7 @@ state->count = 0;
 
 ### CPIs
 
-Normal transfer:
+System transfer:
 
 ```c
 TRY(system_transfer(
@@ -253,15 +253,6 @@ LoadedInstruction ix;
 TRY(instructions_get(&sysvar, 0, &ix));
 ```
 
-### Heap
-
-The built-in bump allocator is included by default:
-
-```c
-void *buf = alloc(1024);  // 8-byte aligned, zero-initialized
-heap_reset();              // reclaim all allocations
-```
-
 ### Logging
 
 ```c
@@ -276,22 +267,6 @@ log_compute_units();            // remaining CUs
 debug("checkpoint");
 debug_u64(val);
 debug_pubkey(key);
-```
-
-### Utilities
-
-```c
-bool eq = pubkey_eq(&a, &b);
-pubkey_cpy(dst, src);
-
-// Stack-allocated growable array:
-Vec(uint64_t, 10) prices = VEC_INIT;
-vec_push(&prices, 42);
-uint64_t last = vec_pop(&prices);
-
-// Little-endian readers (advance pointer):
-uint8_t  b = READ_U8(ptr);
-uint64_t v = READ_U64(ptr);
 ```
 
 ## Vault Benchmark
@@ -398,6 +373,8 @@ Define these before `#include <caravel.h>` (or pass via `-D` flags) to customize
 | `meta_readonly(key)` | Readonly non-signer meta |
 
 ## Disclaimer
+
+This library is unaudited, and thus is not recommended to be used within production programs.
 
 Under no circumstances will there ever be a financial asset involved with this project. This includes, but is not limited to: 
 
