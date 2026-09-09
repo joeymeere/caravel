@@ -10,7 +10,7 @@
     "@types/mocha": "^10.0.0",
     "@types/node": "^20.0.0",
     "chai": "^4.3.0",
-    "litesvm": "^1.0.0",
+    "litesvm": "^1.4.1",
     "mocha": "^10.0.0",
     "ts-mocha": "^10.0.0",
     "typescript": "^5.0.0"

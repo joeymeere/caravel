@@ -37,13 +37,13 @@ static void to_upper(const char *src, char *dst, size_t max) {
     dst[i] = '\0';
 }
 
-int cvl_scaffold_project(const char *name) {
+int cvl_scaffold_project(const char *name, const char *sbf_ver) {
     char path[CVL_MAX_PATH];
     char upper[CVL_MAX_NAME];
 
     to_upper(name, upper, sizeof(upper));
 
-    printf("\n  Creating Caravel project: %s\n\n", name);
+    printf("\n  Creating Caravel project: %s (%s)\n\n", name, sbf_ver);
 
     snprintf(path, sizeof(path), "%s", name);
     if (cvl_file_exists(path)) {
@@ -82,7 +82,7 @@ int cvl_scaffold_project(const char *name) {
     printf("  [+] Caravel.toml\n");
 
     snprintf(path, sizeof(path), "%s/Makefile", name);
-    write_file_fmt(path, TPL_MAKEFILE, name);
+    write_file_fmt(path, TPL_MAKEFILE, name, sbf_ver);
     printf("  [+] Makefile\n");
 
     snprintf(path, sizeof(path), "%s/src/entrypoint.c", name);

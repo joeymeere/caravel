@@ -1,10 +1,42 @@
 #include "cli.h"
 #include "config.h"
+#include <ctype.h>
 
 typedef enum {
     TOOLCHAIN_PLATFORM_TOOLS,
     TOOLCHAIN_UPSTREAM,
 } Toolchain;
+
+typedef enum {
+    SBF_V0 = 0,
+    SBF_V1 = 1,
+    SBF_V2 = 2,
+    SBF_V3 = 3,
+} SbfVersion;
+
+#define SBF_V3_MIN_PT_VERSION 153
+
+static int pt_ver(const char *path) {
+    const char *marker = strstr(path, "/solana/v");
+    if (!marker) return -1;
+    const char *p = marker + strlen("/solana/v");
+
+    if (!isdigit((unsigned char)*p)) return -1;
+    errno = 0;
+    char *end;
+    unsigned long maj = strtoul(p, &end, 10);
+    if (errno != 0 || *end != '.') return -1;
+
+    p = end + 1;
+    if (!isdigit((unsigned char)*p)) return -1;
+    errno = 0;
+    unsigned long min = strtoul(p, &end, 10);
+    if (errno != 0) return -1;
+    if (*end != '\0' && *end != '/') return -1;
+
+    if (maj > 999 || min > 99) return -1;
+    return (int)(maj * 100 + min);
+}
 
 static int collect_sources(const char *base, const char *rel,
                            char out[][CVL_MAX_PATH], int max, int n) {
@@ -139,9 +171,10 @@ static int collect_syscalls(const char *ll_path,
 }
 
 static int compile_platform_tools(const char *clang, const char *opt_level,
-                                  const char *debug_flags, const char *inc,
-                                  const char *src_dir, const char *source,
-                                  const char *build_dir, char *obj_out) {
+                                  const char *debug_flags, const char *arch_flags,
+                                  const char *inc, const char *src_dir,
+                                  const char *source, const char *build_dir,
+                                  char *obj_out) {
     char base[CVL_MAX_PATH];
     strncpy(base, source, CVL_MAX_PATH);
     size_t slen = strlen(base);
@@ -160,13 +193,13 @@ static int compile_platform_tools(const char *clang, const char *opt_level,
     char cmd[CVL_MAX_PATH * 3];
     if (is_asm)
         snprintf(cmd, sizeof(cmd),
-            "%s --target=sbf -c %s/%s -o %s",
-            clang, src_dir, source, obj_out);
+            "%s --target=sbf%s -c %s/%s -o %s",
+            clang, arch_flags, src_dir, source, obj_out);
     else
         snprintf(cmd, sizeof(cmd),
-            "%s --target=sbf -fPIC %s -fno-builtin -fdata-sections"
+            "%s --target=sbf%s -fPIC %s -fno-builtin -fdata-sections"
             "%s -I%s -I%s -c %s/%s -o %s",
-            clang, opt_level, debug_flags, inc,
+            clang, arch_flags, opt_level, debug_flags, inc,
             src_dir, src_dir, source, obj_out);
 
     printf("  [%s] %s/%s\n", is_asm ? "AS" : "CC", src_dir, source);
@@ -236,7 +269,8 @@ static int compile_upstream(const char *clang, const char *opt_level,
 }
 
 static int link_platform_tools(const char *lld, const char *inc,
-                               const char *build_dir,
+                               const char *build_dir, const char *link_script,
+                               const char *link_extra,
                                char objs[][CVL_MAX_PATH], int nobj) {
     char obj_list[CVL_MAX_PATH * 64] = "";
     for (int i = 0; i < nobj; i++) {
@@ -246,14 +280,15 @@ static int link_platform_tools(const char *lld, const char *inc,
 
     char cmd[CVL_MAX_PATH * 3];
     snprintf(cmd, sizeof(cmd),
-        "%s -z notext -shared --Bdynamic --gc-sections "
-        "%s/bpf.ld --entry entrypoint -o %s/program.so %s",
-        lld, inc, build_dir, obj_list);
+        "%s -z notext -shared --Bdynamic --gc-sections%s "
+        "%s/%s --entry entrypoint -o %s/program.so %s",
+        lld, link_extra, inc, link_script, build_dir, obj_list);
 
     return cvl_run_command(cmd);
 }
 
-static int link_upstream(const char *linker, const char *build_dir,
+static int link_upstream(const char *linker, const char *cpu_name,
+                            const char *build_dir,
                             char objs[][CVL_MAX_PATH], int nobj,
                             char exports[][CVL_MAX_NAME], int nexports) {
     char obj_list[CVL_MAX_PATH * 64] = "";
@@ -271,14 +306,14 @@ static int link_upstream(const char *linker, const char *build_dir,
 
     char cmd[CVL_MAX_PATH * 3];
     snprintf(cmd, sizeof(cmd),
-        "%s --cpu v2 %s "
+        "%s --cpu %s %s "
         "--cpu-features +allows-misaligned-mem-access "
         "--disable-expand-memcpy-in-order "
         "-O 1 "
         "--llvm-args=-bpf-stack-size=4096 "
         "--llvm-args=-inline-threshold=10000 "
         "-o %s/program.so %s",
-        linker, export_args, build_dir, obj_list);
+        linker, cpu_name, export_args, build_dir, obj_list);
 
     return cvl_run_command(cmd);
 }
@@ -288,9 +323,22 @@ int cmd_build(int argc, char **argv) {
     const char *debug_flags = "";
     const char *mode_label = "release";
     Toolchain toolchain = TOOLCHAIN_PLATFORM_TOOLS;
+    SbfVersion sbf_ver = SBF_V0;
 
     for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "--debug") == 0) {
+        if (strncmp(argv[i], "--sbf-ver=", 10) == 0) {
+            const char *v = argv[i] + 10;
+            if (v[0] == 'v' || v[0] == 'V') v++;
+            if (strcmp(v, "0") == 0)      sbf_ver = SBF_V0;
+            else if (strcmp(v, "1") == 0) sbf_ver = SBF_V1;
+            else if (strcmp(v, "2") == 0) sbf_ver = SBF_V2;
+            else if (strcmp(v, "3") == 0) sbf_ver = SBF_V3;
+            else {
+                fprintf(stderr, "err: unknown sbf version '%s' "
+                        "(expected v0, v1, v2, or v3)\n", argv[i] + 10);
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--debug") == 0) {
             opt_level = "-O1";
             debug_flags = " -g";
             mode_label = "debug";
@@ -311,6 +359,28 @@ int cmd_build(int argc, char **argv) {
         }
     }
 
+    const char *arch_flags;
+    const char *cpu_name;
+    const char *link_script;
+    const char *link_extra;
+    const char *ver_label;
+    switch (sbf_ver) {
+        case SBF_V1:
+            arch_flags = " -mcpu=v1"; cpu_name = "v1";
+            link_script = "bpf.ld"; link_extra = ""; ver_label = "sbfv1"; break;
+        case SBF_V2:
+            arch_flags = " -mcpu=v2"; cpu_name = "v2";
+            link_script = "bpf.ld"; link_extra = ""; ver_label = "sbfv2"; break;
+        case SBF_V3:
+            arch_flags = " -mcpu=v3 -DCVL_STATIC_SYSCALLS"; cpu_name = "v3";
+            link_script = "sbpfv3.ld"; link_extra = " --strip-all -Bsymbolic";
+            ver_label = "sbfv3"; break;
+        case SBF_V0:
+        default:
+            arch_flags = ""; cpu_name = "generic";
+            link_script = "bpf.ld"; link_extra = ""; ver_label = "sbfv0"; break;
+    }
+
     CvlConfig cfg;
     if (cvl_config_load("Caravel.toml", &cfg) != 0) {
         fprintf(stderr, "err: Caravel.toml not found\n");
@@ -319,8 +389,8 @@ int cmd_build(int argc, char **argv) {
 
     const char *toolchain_label = (toolchain == TOOLCHAIN_UPSTREAM)
         ? "upstream" : "platform-tools";
-    printf("\n  Building %s v%s (%s, %s)\n\n",
-        cfg.name, cfg.version, mode_label, toolchain_label);
+    printf("\n  Building %s v%s (%s, %s, %s)\n\n",
+        cfg.name, cfg.version, mode_label, toolchain_label, ver_label);
 
     cvl_mkdir_p(cfg.build_dir);
 
@@ -371,6 +441,23 @@ int cmd_build(int argc, char **argv) {
         lld = cvl_find_tool("SOLANA_LLD", "ld.lld", lld_buf, sizeof(lld_buf));
     }
 
+    if (sbf_ver == SBF_V3 && toolchain == TOOLCHAIN_PLATFORM_TOOLS) {
+        int ptv = pt_ver(clang);
+        if (ptv >= 0 && ptv < SBF_V3_MIN_PT_VERSION) {
+            fprintf(stderr,
+                "err: --sbf-ver=v3 requires platform-tools >= v1.53 "
+                "(found v%d.%d).\n"
+                "     Install a newer release, e.g. `agave-install init` a "
+                "version bundling platform-tools v1.57.\n",
+                ptv / 100, ptv % 100);
+            return 1;
+        }
+        if (ptv < 0)
+            fprintf(stderr,
+                "warn: could not determine platform-tools version for v3 "
+                "(custom clang path); ensure it is >= v1.53.\n");
+    }
+
     const char *inc = getenv("CARAVEL_INCLUDE");
     char inc_buf[CVL_MAX_PATH];
     if (!inc) {
@@ -402,8 +489,8 @@ int cmd_build(int argc, char **argv) {
                     cfg.src_dir, sources[i], cfg.build_dir,
                     obj_files[nobj], exports, &nexports);
         } else {
-            rc = compile_platform_tools(clang, opt_level, debug_flags, inc,
-                    cfg.src_dir, sources[i], cfg.build_dir,
+            rc = compile_platform_tools(clang, opt_level, debug_flags, arch_flags,
+                    inc, cfg.src_dir, sources[i], cfg.build_dir,
                     obj_files[nobj]);
         }
         if (rc != 0) return 1;
@@ -414,10 +501,11 @@ int cmd_build(int argc, char **argv) {
 
     int rc;
     if (toolchain == TOOLCHAIN_UPSTREAM)
-        rc = link_upstream(linker, cfg.build_dir,
+        rc = link_upstream(linker, cpu_name, cfg.build_dir,
                 obj_files, nobj, exports, nexports);
     else
-        rc = link_platform_tools(lld, inc, cfg.build_dir, obj_files, nobj);
+        rc = link_platform_tools(lld, inc, cfg.build_dir, link_script,
+                link_extra, obj_files, nobj);
 
     if (rc != 0) {
         fprintf(stderr, "\nerr: linking failed (exit %d)\n", rc);

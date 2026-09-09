@@ -3,6 +3,117 @@
 
 #include "types.h"
 
+/*
+ * Static syscalls (sbpfv3)
+ *
+ * Each call must carry a baked murmur32(name) imm with src reg 0 (`call <hash>`),
+ * args r1-r5, and result in r0
+ */
+#ifdef CVL_STATIC_SYSCALLS
+
+/* returning syscall, no args, result cast from r0 */
+#define CVL_SYS_R0(ret, name, h) \
+    static inline ret name(void){ register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h):"memory"); return (ret)_o; }
+/* returning syscall, 1 arg in r1, result cast from r0 */
+#define CVL_SYS_R1(ret, name, h, t1) \
+    static inline ret name(t1 a1){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1):"memory"); return (ret)_o; }
+/* returning syscall, 2 args in r1-r2, result cast from r0 */
+#define CVL_SYS_R2(ret, name, h, t1, t2) \
+    static inline ret name(t1 a1, t2 a2){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2):"memory"); return (ret)_o; }
+/* returning syscall, 3 args in r1-r3, result cast from r0 */
+#define CVL_SYS_R3(ret, name, h, t1, t2, t3) \
+    static inline ret name(t1 a1, t2 a2, t3 a3){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3):"memory"); return (ret)_o; }
+/* returning syscall, 4 args in r1-r4, result cast from r0 */
+#define CVL_SYS_R4(ret, name, h, t1, t2, t3, t4) \
+    static inline ret name(t1 a1, t2 a2, t3 a3, t4 a4){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        register uint64_t _4 __asm__("r4")=(uint64_t)(a4); register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4):"memory"); return (ret)_o; }
+/* returning syscall, 5 args in r1-r5, result cast from r0 */
+#define CVL_SYS_R5(ret, name, h, t1, t2, t3, t4, t5) \
+    static inline ret name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        register uint64_t _4 __asm__("r4")=(uint64_t)(a4); register uint64_t _5 __asm__("r5")=(uint64_t)(a5); \
+        register uint64_t _o __asm__("r0"); \
+        __asm__ volatile("call %[__h]":"=r"(_o):[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4),"r"(_5):"memory"); return (ret)_o; }
+/* void syscall, no args */
+#define CVL_SYS_V0(name, h) \
+    static inline void name(void){ __asm__ volatile("call %[__h]"::[__h]"i"(h):"r0","memory"); }
+/* void syscall, 1 arg in r1 */
+#define CVL_SYS_V1(name, h, t1) \
+    static inline void name(t1 a1){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1):"r0","memory"); }
+/* void syscall, 2 args in r1-r2 */
+#define CVL_SYS_V2(name, h, t1, t2) \
+    static inline void name(t1 a1, t2 a2){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); \
+        __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2):"r0","memory"); }
+/* void syscall, 3 args in r1-r3 */
+#define CVL_SYS_V3(name, h, t1, t2, t3) \
+    static inline void name(t1 a1, t2 a2, t3 a3){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3):"r0","memory"); }
+/* void syscall, 4 args in r1-r4 */
+#define CVL_SYS_V4(name, h, t1, t2, t3, t4) \
+    static inline void name(t1 a1, t2 a2, t3 a3, t4 a4){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        register uint64_t _4 __asm__("r4")=(uint64_t)(a4); \
+        __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4):"r0","memory"); }
+/* void syscall, 5 args in r1-r5 */
+#define CVL_SYS_V5(name, h, t1, t2, t3, t4, t5) \
+    static inline void name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5){ register uint64_t _1 __asm__("r1")=(uint64_t)(a1); \
+        register uint64_t _2 __asm__("r2")=(uint64_t)(a2); register uint64_t _3 __asm__("r3")=(uint64_t)(a3); \
+        register uint64_t _4 __asm__("r4")=(uint64_t)(a4); register uint64_t _5 __asm__("r5")=(uint64_t)(a5); \
+        __asm__ volatile("call %[__h]"::[__h]"i"(h),"r"(_1),"r"(_2),"r"(_3),"r"(_4),"r"(_5):"r0","memory"); }
+
+CVL_SYS_V2(sol_log_,                          0x207559bd, const char *, uint64_t)
+CVL_SYS_V5(sol_log_64_,                       0x5c2a3178, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t)
+CVL_SYS_V1(sol_log_pubkey,                    0x7ef088ca, const Pubkey *)
+CVL_SYS_V0(sol_log_compute_units_,            0x52ba5096)
+CVL_SYS_V3(sol_log_data,                      0x7317b434, const uint8_t **, const uint64_t *, uint64_t)
+CVL_SYS_R3(void *, sol_memcpy_,               0x717cc4a3, void *, const void *, uint64_t)
+CVL_SYS_R3(void *, sol_memmove_,              0x434371f8, void *, const void *, uint64_t)
+CVL_SYS_R3(void *, sol_memset_,               0x3770fb22, void *, uint8_t, uint64_t)
+CVL_SYS_R4(int, sol_memcmp_,                  0x5fdcde31, const void *, const void *, uint64_t, int *)
+CVL_SYS_R5(uint64_t, sol_invoke_signed_c,     0xa22b9c85, const Instruction *, const AccountInfo *, int, const SignerSeeds *, int)
+CVL_SYS_R4(uint64_t, sol_create_program_address,   0x9377323c, const SignerSeed *, int, const Pubkey *, Pubkey *)
+CVL_SYS_R5(uint64_t, sol_try_find_program_address, 0x48504a38, const SignerSeed *, int, const Pubkey *, Pubkey *, uint8_t *)
+CVL_SYS_R3(uint64_t, sol_sha256,              0x11f49d86, const SignerSeed *, uint64_t, uint8_t *)
+CVL_SYS_R3(uint64_t, sol_keccak256,           0xd7793abb, const SignerSeed *, uint64_t, uint8_t *)
+CVL_SYS_R1(uint64_t, sol_get_clock_sysvar,    0xd56b5fe9, void *)
+CVL_SYS_R1(uint64_t, sol_get_rent_sysvar,     0xbf7188f6, void *)
+CVL_SYS_R3(uint64_t, sol_get_return_data,     0x5d2245e4, uint8_t *, uint64_t, Pubkey *)
+CVL_SYS_V2(sol_set_return_data,               0xa226d3eb, const uint8_t *, uint64_t)
+CVL_SYS_R0(uint64_t, sol_get_stack_height,    0x85532d94)
+CVL_SYS_R0(uint64_t, sol_remaining_compute_units, 0xedef5aee)
+CVL_SYS_R3(uint64_t, sol_blake3,              0x174c5122, const SignerSeed *, uint64_t, uint8_t *)
+CVL_SYS_R5(uint64_t, sol_poseidon,            0xc4947c21, uint64_t, uint64_t, const SignerSeed *, uint64_t, uint8_t *)
+CVL_SYS_R4(uint64_t, sol_secp256k1_recover,   0x17e40350, const uint8_t *, uint64_t, const uint8_t *, uint8_t *)
+CVL_SYS_R3(uint64_t, sol_curve_validate_point,     0xaa2607ca, uint64_t, const uint8_t *, uint8_t *)
+CVL_SYS_R5(uint64_t, sol_curve_group_op,      0xdd1c41a6, uint64_t, uint64_t, const uint8_t *, const uint8_t *, uint8_t *)
+CVL_SYS_R5(uint64_t, sol_curve_multiscalar_mul,    0x60a40880, uint64_t, const uint8_t *, const uint8_t *, uint64_t, uint8_t *)
+CVL_SYS_R4(uint64_t, sol_alt_bn128_group_op,  0xae0c318b, uint64_t, const uint8_t *, uint64_t, uint8_t *)
+CVL_SYS_R4(uint64_t, sol_alt_bn128_compression,    0x334fd5ed, uint64_t, const uint8_t *, uint64_t, uint8_t *)
+CVL_SYS_R2(uint64_t, sol_big_mod_exp,         0x780e4c15, const uint8_t *, uint8_t *)
+CVL_SYS_R1(uint64_t, sol_get_epoch_schedule_sysvar, 0x23a29a61, void *)
+CVL_SYS_R1(uint64_t, sol_get_epoch_rewards_sysvar,  0xfdba2b3b, void *)
+CVL_SYS_R1(uint64_t, sol_get_last_restart_slot,     0x188a0031, void *)
+CVL_SYS_R4(uint64_t, sol_get_sysvar,          0x13c1b505, const Pubkey *, uint8_t *, uint64_t, uint64_t)
+CVL_SYS_R5(uint64_t, sol_get_processed_sibling_instruction, 0xadb8efc8, uint64_t, void *, Pubkey *, uint8_t *, void *)
+CVL_SYS_R1(uint64_t, sol_get_epoch_stake,     0x5be92f4a, const Pubkey *)
+CVL_SYS_V0(abort,                             0xb6fc1a11)
+CVL_SYS_V4(sol_panic_,                        0x686093bb, const char *, uint64_t, uint64_t, uint64_t)
+
+#else
+
 /**
  * Prints a string to stdout
  */
@@ -390,5 +501,7 @@ extern void abort(void);
  */
 extern void sol_panic_(const char *message, uint64_t len,
                        uint64_t line, uint64_t column);
+
+#endif /* CVL_STATIC_SYSCALLS */
 
 #endif /* SYSCALL_H */

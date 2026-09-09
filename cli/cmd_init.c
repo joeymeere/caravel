@@ -14,18 +14,43 @@ static int valid_name(const char *name) {
 int cmd_init(int argc, char **argv) {
     if (argc < 1) {
         fprintf(stderr,
-            "Usage: caravel init <project-name>\n"
+            "Usage: caravel init <project-name> [--sbf-ver=v0|v1|v2|v3]\n"
             "\n"
             "Creates a new Caravel project directory with:\n"
             "  Caravel.toml   Project configuration\n"
             "  Makefile        Build rules for SBF target\n"
             "  src/            Program source files\n"
             "  tests/          TypeScript test suite\n"
-            "  build/          Compilation output\n");
+            "  build/          Compilation output\n"
+            "\n"
+            "  --sbf-ver=<v>   Default SBPF version baked into the Makefile\n"
+            "                  (v0 default; overridable at build with make SBF_VER=)\n");
         return 1;
     }
 
-    const char *name = argv[0];
+    const char *name = NULL;
+    const char *sbf_ver = "v0";
+    for (int i = 0; i < argc; i++) {
+        if (strncmp(argv[i], "--sbf-ver=", 10) == 0) {
+            const char *v = argv[i] + 10;
+            if (v[0] == 'v' || v[0] == 'V') v++;
+            if (strcmp(v, "0") && strcmp(v, "1") &&
+                strcmp(v, "2") && strcmp(v, "3")) {
+                fprintf(stderr, "err: unknown sbf version '%s' "
+                        "(expected v0, v1, v2, or v3)\n", argv[i] + 10);
+                return 1;
+            }
+            static char verbuf[3];
+            verbuf[0] = 'v'; verbuf[1] = v[0]; verbuf[2] = '\0';
+            sbf_ver = verbuf;
+        } else if (argv[i][0] != '-' && !name) {
+            name = argv[i];
+        }
+    }
+    if (!name) {
+        fprintf(stderr, "err: missing project name\n");
+        return 1;
+    }
 
     if (strlen(name) >= CVL_MAX_NAME) {
         fprintf(stderr, "err: project name too long (max %d characters)\n",
@@ -41,5 +66,5 @@ int cmd_init(int argc, char **argv) {
         return 1;
     }
 
-    return cvl_scaffold_project(name);
+    return cvl_scaffold_project(name, sbf_ver);
 }
