@@ -347,14 +347,27 @@ Define these before `#include <caravel.h>` (or pass via `-D` flags) to customize
 
 | Function | Description |
 |----------|-------------|
+| `token_initialize_mint(mint, rent, mint_auth, freeze_auth, decimals, accounts, len)` | Initialize mint (`freeze_auth` may be `NULL`) |
+| `token_initialize_account(token, mint, owner, accounts, len)` | Initialize token account |
+| `token_initialize_account_signed(...)` | PDA-signed initialize token account |
 | `token_transfer(src, dst, auth, amount, accounts, len)` | Token transfer |
 | `token_transfer_signed(...)` | PDA-signed token transfer |
 | `token_mint_to(mint, dst, auth, amount, accounts, len)` | Mint tokens |
 | `token_mint_to_signed(...)` | PDA-signed mint |
 | `token_burn(token, mint, auth, amount, accounts, len)` | Burn tokens |
+| `token_burn_signed(...)` | PDA-signed burn |
 | `token_close_account(token, dst, auth, accounts, len)` | Close token account |
 | `token_close_account_signed(...)` | PDA-signed close |
 | `token_approve(token, delegate, owner, amount, accounts, len)` | Approve delegate |
+| `token_approve_signed(...)` | PDA-signed approve |
+| `token_revoke(token, owner, accounts, len)` | Revoke delegate |
+| `token_revoke_signed(...)` | PDA-signed revoke |
+| `token_set_authority(owned, auth, type, new_auth, accounts, len)` | Set/clear authority (`TOKEN_AUTHORITY_*`, `new_auth` may be `NULL`) |
+| `token_set_authority_signed(...)` | PDA-signed set authority |
+| `token_freeze_account(token, mint, freeze_auth, accounts, len)` | Freeze token account |
+| `token_freeze_account_signed(...)` | PDA-signed freeze |
+| `token_thaw_account(token, mint, freeze_auth, accounts, len)` | Thaw token account |
+| `token_thaw_account_signed(...)` | PDA-signed thaw |
 | `token_sync_native(token, accounts, len)` | Sync native SOL balance |
 | `TOKEN_ACCOUNT(acc)` | Cast to `TokenAccount *` |
 | `MINT_ACCOUNT(acc)` | Cast to `MintAccount *` |
