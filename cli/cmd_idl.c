@@ -125,7 +125,7 @@ static const char *map_c_type(const char *ct) {
     if (strcmp(ct, "int16_t")  == 0) return "i16";
     if (strcmp(ct, "int32_t")  == 0) return "i32";
     if (strcmp(ct, "int64_t")  == 0) return "i64";
-    if (strcmp(ct, "CvlPubkey") == 0) return "publicKey";
+    if (strcmp(ct, "Pubkey")   == 0) return "pubkey";
     if (strcmp(ct, "bool")     == 0) return "bool";
     return ct;
 }

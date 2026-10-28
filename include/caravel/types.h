@@ -2,16 +2,8 @@
 #define TYPES_H
 
 #include <stdbool.h>
-
-typedef unsigned char      uint8_t;
-typedef unsigned short     uint16_t;
-typedef unsigned int       uint32_t;
-typedef unsigned long long uint64_t;
-
-typedef signed char        int8_t;
-typedef signed short       int16_t;
-typedef signed int         int32_t;
-typedef signed long long   int64_t;
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
     uint8_t bytes[32];
@@ -94,10 +86,6 @@ static const Pubkey INSTRUCTIONS_SYSVAR_ID = {{
 #define PUBKEY_SIZE  32
 #ifndef MAX_ACCOUNTS
 #define MAX_ACCOUNTS 16
-#endif
-
-#ifndef NULL
-#define NULL ((void *)0)
 #endif
 
 #define LIKELY(x)   __builtin_expect(!!(x), 1)

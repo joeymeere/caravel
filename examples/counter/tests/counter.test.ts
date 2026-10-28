@@ -43,6 +43,18 @@ function disc(d: number): Uint8Array {
   return new Uint8Array([d]);
 }
 
+const INVALID_ARGUMENT = 1;
+const ERROR_ACCOUNT_NOT_EXECUTABLE = 0x100 + 6;
+const ERROR_DUPLICATE_ACCOUNT = 0x100 + 7;
+
+function ixError(result: unknown): number | { custom: number } {
+  expect(result).to.be.instanceOf(FailedTransactionMetadata);
+  const txErr = (result as FailedTransactionMetadata).err() as any;
+  expect(txErr, "expected an InstructionError").to.have.property("index");
+  const err = txErr.err();
+  return typeof err === "number" ? err : { custom: err.code };
+}
+
 describe("Counter Program", () => {
   const programPath = path.join(__dirname, "..", "build", "program.so");
 
@@ -158,9 +170,48 @@ describe("Counter Program", () => {
       data: disc(2),
     };
 
+
+    svm.expireBlockhash();
     const tx = await buildTx(svm, payerAddr, [payerKeys], ix);
     const result = svm.sendTransaction(tx);
-    expect(result).to.be.instanceOf(FailedTransactionMetadata);
+
+    expect(ixError(result)).to.equal(INVALID_ARGUMENT);
+  });
+
+  it("rejects a non-executable account in a PROGRAM slot", async () => {
+    const fakeKeys = await generateKeyPair();
+    const fakeAddr = await getAddressFromPublicKey(fakeKeys.publicKey);
+    const newCounterKeys = await generateKeyPair();
+    const newCounterAddr = await getAddressFromPublicKey(newCounterKeys.publicKey);
+
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: payerAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: newCounterAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: fakeAddr, role: AccountRole.READONLY },
+      ],
+      data: disc(0),
+    };
+
+    const tx = await buildTx(svm, payerAddr, [payerKeys, newCounterKeys], ix);
+    const result = svm.sendTransaction(tx);
+    expect(ixError(result)).to.deep.equal({ custom: ERROR_ACCOUNT_NOT_EXECUTABLE });
+  });
+
+  it("rejects duplicate accounts", async () => {
+    const ix: Instruction = {
+      programAddress: programId,
+      accounts: [
+        { address: payerAddr, role: AccountRole.WRITABLE_SIGNER },
+        { address: payerAddr, role: AccountRole.WRITABLE_SIGNER },
+      ],
+      data: disc(1),
+    };
+
+    const tx = await buildTx(svm, payerAddr, [payerKeys], ix);
+    const result = svm.sendTransaction(tx);
+    expect(ixError(result)).to.deep.equal({ custom: ERROR_DUPLICATE_ACCOUNT });
   });
 
   it("rejects increment from wrong authority", async () => {
@@ -179,6 +230,6 @@ describe("Counter Program", () => {
 
     const tx = await buildTx(svm, wrongAddr, [wrongKeys], ix);
     const result = svm.sendTransaction(tx);
-    expect(result).to.be.instanceOf(FailedTransactionMetadata);
+    expect(ixError(result)).to.equal(INVALID_ARGUMENT);
   });
 });

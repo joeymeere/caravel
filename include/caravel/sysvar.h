@@ -21,7 +21,7 @@ typedef struct {
  * @param clock Pointer to a Clock struct to fill
  * @return SUCCESS on success
  *
- * @code GET_CLOCK(clock);
+ * @code get_clock(&clock);
  */
 static inline uint64_t get_clock(Clock *clock) {
     return sol_get_clock_sysvar(clock);
@@ -39,27 +39,103 @@ typedef struct {
  * @param rent Pointer to a Rent struct to fill
  * @return SUCCESS on success
  *
- * @code GET_RENT(rent);
+ * @code get_rent(&rent);
  */
 static inline uint64_t get_rent(Rent *rent) {
     return sol_get_rent_sysvar(rent);
 }
 
+/** per-account metadata overhead the runtime charges rent for */
+#define ACCOUNT_STORAGE_OVERHEAD 128
+
+/*
+ * Round the 128-bit integer hi:lo to 53 significant bits (round half to
+ * even), as an f64 conversion would. Returns the significand q and writes
+ * the binary exponent so that value ~= q * 2^(*e).
+ */
+static inline uint64_t _cvl_round53(uint64_t hi, uint64_t lo, int64_t *e) {
+    int64_t bits = 0;
+    if (hi) { uint64_t t = hi; bits = 64; while (t) { t >>= 1; bits++; } }
+    else    { uint64_t t = lo;            while (t) { t >>= 1; bits++; } }
+
+    if (bits <= 53) { *e = 0; return lo; }
+
+    int64_t drop = bits - 53;
+    uint64_t q, rem_hi_bit, rem_rest;
+    if (drop < 64) {
+        q = (lo >> drop) | (hi << (64 - drop));
+        rem_hi_bit = (lo >> (drop - 1)) & 1;
+        rem_rest   = (drop > 1) ? (lo & ((1ULL << (drop - 1)) - 1)) : 0;
+    } else {
+        q = hi >> (drop - 64);
+        rem_hi_bit = (drop == 64) ? (lo >> 63) : ((hi >> (drop - 65)) & 1);
+        rem_rest   = (drop == 64)
+            ? (lo & 0x7FFFFFFFFFFFFFFFULL)
+            : (lo | (hi & ((1ULL << (drop - 65)) - 1)));
+    }
+    if (rem_hi_bit && (rem_rest || (q & 1))) q++;
+    *e = drop;
+    return q;
+}
+
+/* q * 2^e as u64, saturating (equiv. f64 as u64) */
+static inline uint64_t _cvl_ldexp_u64(uint64_t q, int64_t e) {
+    if (e >= 0) {
+        if (e >= 64 || q > (UINT64_MAX >> e)) return UINT64_MAX;
+        return q << e;
+    }
+    return (-e >= 64) ? 0 : q >> -e;
+}
+
 /**
  * Calculate minimum balance for rent exemption.
  *
- * @param rent Pointer to a Rent struct to use
+ * @param rent Pointer to a Rent struct filled by get_rent()
  * @param data_len The size of the account data in bytes
  * @return The minimum balance for rent exemption
  *
- * @code MINIMUM_BALANCE(rent, data_len);
+ * @code
+ *   Rent rent;
+ *   get_rent(&rent);
+ *   uint64_t lamports = minimum_balance(&rent, sizeof(MyState));
  */
 static inline uint64_t minimum_balance(const Rent *rent, uint64_t data_len) {
-    /* 128 = account metadata overhead */
-    uint64_t total_size = 128 + data_len;
-    uint64_t cost_per_year = total_size * rent->lamports_per_byte_year;
-    /* exemption_threshold is always 2.0 */
-    return cost_per_year * 2;
+    uint64_t cost = (ACCOUNT_STORAGE_OVERHEAD + data_len)
+                  * rent->lamports_per_byte_year;
+
+    /* IEEE-754 f64 threshold ~ value = mant * 2^(exp - 1075) */
+    uint64_t bits;
+    __builtin_memcpy(&bits, rent->exemption_threshold, sizeof(bits));
+
+    int64_t  exp  = (int64_t)((bits >> 52) & 0x7FF);
+    uint64_t frac = bits & 0xFFFFFFFFFFFFFULL;
+
+    if ((bits >> 63) || exp == 0) return 0;          /* <= 0 or subnormal */
+    if (exp == 0x7FF) return UINT64_MAX;            /* inf / nan */
+
+    /* cost as f64 */
+    int64_t ce = 0;
+    uint64_t cq = cost;
+    if (UNLIKELY(cost >> 53))
+        cq = _cvl_round53(0, cost, &ce);
+
+    /* threshold is a power of two (1.0, 2.0, ...) */
+    if (frac == 0)
+        return _cvl_ldexp_u64(cq, ce + exp - 1023);
+
+    /* round(cq * mant) * 2^(ce + exp - 1075) */
+    uint64_t mant = frac | (1ULL << 52);
+    uint64_t a_lo = cq & 0xFFFFFFFF, a_hi = cq >> 32;
+    uint64_t b_lo = mant & 0xFFFFFFFF, b_hi = mant >> 32;
+    uint64_t ll = a_lo * b_lo, lh = a_lo * b_hi;
+    uint64_t hl = a_hi * b_lo, hh = a_hi * b_hi;
+    uint64_t mid = (ll >> 32) + (lh & 0xFFFFFFFF) + (hl & 0xFFFFFFFF);
+    uint64_t lo  = (ll & 0xFFFFFFFF) | (mid << 32);
+    uint64_t hi  = hh + (lh >> 32) + (hl >> 32) + (mid >> 32);
+
+    int64_t pe;
+    uint64_t pq = _cvl_round53(hi, lo, &pe);
+    return _cvl_ldexp_u64(pq, pe + ce + exp - 1075);
 }
 
 typedef struct {

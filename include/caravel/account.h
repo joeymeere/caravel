@@ -25,6 +25,13 @@
  */
 #define ACCOUNT_STATE(acc, type) ((type *)((acc)->data))
 
+/**
+ * Account flags for X-macro tables.
+ *
+ *   SIGNER   - account must have signed the transaction
+ *   WRITABLE - account must be writable
+ *   PROGRAM  - account must be executable (does NOT check what program it is)
+ */
 #define SIGNER   (1 << 0)
 #define WRITABLE (1 << 1)
 #define PROGRAM  (1 << 2)
@@ -69,6 +76,14 @@
         } \
     } while (0)
 
+#define ASSERT_EXECUTABLE(acc) \
+    do { \
+        if (!(acc)->executable) { \
+            log_literal("err: account not executable"); \
+            return ERROR_ACCOUNT_NOT_EXECUTABLE; \
+        } \
+    } while (0)
+
 #define ASSERT_DATA_LEN(acc, min_len) \
     do { \
         if ((acc)->data_len < (min_len)) { \
@@ -105,7 +120,6 @@
 #define _ACCOUNT_COUNT(name, flags) + 1
 
 /* generate validation + assignment with auto-incrementing index */
-#undef _ACCOUNT_VALIDATE
 #define _ACCOUNT_VALIDATE(name, flags) \
     ctx->name = &params->accounts[_idx]; \
     if (((flags) & SIGNER) && !ctx->name->is_signer) { \
@@ -115,6 +129,10 @@
     if (((flags) & WRITABLE) && !ctx->name->is_writable) { \
         log_literal("err: " #name " must be writable"); \
         return ERROR_ACCOUNT_NOT_WRITABLE; \
+    } \
+    if (((flags) & PROGRAM) && !ctx->name->executable) { \
+        log_literal("err: " #name " must be executable"); \
+        return ERROR_ACCOUNT_NOT_EXECUTABLE; \
     } \
     _idx++;
 
@@ -138,7 +156,7 @@
         prefix##_accounts_t *ctx \
     ) { \
         enum { _expected = 0 accounts_table(_ACCOUNT_COUNT) }; \
-        if (params->accounts_len < _expected) { \
+        if (UNLIKELY(params->accounts_len < _expected)) { \
             log_literal("err: not enough accounts"); \
             return ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
         } \

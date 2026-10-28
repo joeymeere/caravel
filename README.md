@@ -68,7 +68,7 @@ ENTRYPOINT(
 )
 ```
 
-`IX(disc, prefix, accounts_table)` generates `prefix_accounts_t` (struct with named `AccountInfo *` fields), `prefix_validate()` (validates signer/writable flags), and an empty `prefix_args_t`. To accept instruction data, pass a packed struct as a 4th argument:
+`IX(disc, prefix, accounts_table)` generates `prefix_accounts_t` (struct with named `AccountInfo *` fields), `prefix_validate()` (validates `SIGNER` / `WRITABLE` / `PROGRAM` flags), and an empty `prefix_args_t`. To accept instruction data, pass a packed struct as a 4th argument:
 
 ```c
 typedef struct __attribute__((packed)) {
@@ -214,7 +214,30 @@ ASSERT_OWNER(acc, &expected_owner);
 ASSERT_KEY(acc, &expected_key);
 ASSERT_INITIALIZED(acc);
 ASSERT_DATA_LEN(acc, min_len);
+ASSERT_EXECUTABLE(acc);
 ```
+
+Account flags in X-macro tables are checked by `prefix_validate()` / `prefix_parse()`:
+
+| Flag | Check | Error |
+|------|-------|-------|
+| `SIGNER` | `is_signer` | `ERROR_MISSING_REQUIRED_SIGNATURE` |
+| `WRITABLE` | `is_writable` | `ERROR_ACCOUNT_NOT_WRITABLE` |
+| `PROGRAM` | `executable` (not *which* program — use `ASSERT_KEY` for that) | `ERROR_ACCOUNT_NOT_EXECUTABLE` |
+
+### Errors
+
+Builtin errors (`ERROR_INVALID_ARGUMENT`, `ERROR_MISSING_REQUIRED_SIGNATURE`, ...) are encoded the way the runtime expects (`TO_BUILTIN(n) = n << 32`), so they surface as the matching `ProgramError` variant (e.g. `InvalidArgument`). Your own errors use `ERROR_CUSTOM(n)`, which surfaces as `Custom(0x100 + n)`. Caravel's own custom errors occupy `ERROR_CUSTOM(0)`..`ERROR_CUSTOM(7)`.
+
+```c
+#define MY_ERROR_TOO_LATE ERROR_CUSTOM(32)
+
+if (clock.unix_timestamp > state->deadline) return MY_ERROR_TOO_LATE;
+```
+
+### Duplicate Accounts
+
+By default, every entrypoint rejects instructions that pass the same account more than once (`ERROR_DUPLICATE_ACCOUNT`). This prevents aliasing bugs, e.g. a context where `from` and `to` are secretly the same account. Define `ALLOW_DUPLICATE_ACCOUNTS` to accept duplicates; your handlers then need to check keys wherever aliasing matters.
 
 ### Math
 
@@ -256,7 +279,7 @@ TRY(instructions_get(&sysvar, 0, &ix));
 ### Logging
 
 ```c
-log("hello");                   // runtime strlen
+log_str("hello");               // runtime strlen
 log_literal("hello");           // compile-time strlen
 log_u64(42);                    // log a single u64
 log_64(a, b, c, d, e);         // log up to 5 u64 values
@@ -300,6 +323,7 @@ Define these before `#include <caravel.h>` (or pass via `-D` flags) to customize
 | `HEAP_SZ` | `32768` | Override the heap size (bytes). |
 | `NO_SYSTEM` | *(not set)* | Exclude System program CPI helpers (`system_transfer`, `system_create_account`, etc.). |
 | `NO_TOKEN` | *(not set)* | Exclude SPL Token CPI helpers (`token_transfer`, `token_mint_to`, etc.). |
+| `ALLOW_DUPLICATE_ACCOUNTS` | *(not set)* | Accept instructions that pass the same account more than once. By default they are rejected with `ERROR_DUPLICATE_ACCOUNT`. |
 | `DEBUG` | *(not set)* | Enable `debug()`, `debug_u64()`, and `debug_pubkey()` macros. When not set, these compile to no-ops. |
 
 ## API Reference

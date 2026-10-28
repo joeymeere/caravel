@@ -135,7 +135,7 @@ extern void sol_log_pubkey(const Pubkey *pubkey);
 /**
  * Prints the current compute unit consumption to stdout
  */
-extern void sol_log_compute_units_();
+extern void sol_log_compute_units_(void);
 
 /**
  * Print the base64 representation of some arrays.

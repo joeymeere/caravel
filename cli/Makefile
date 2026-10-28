@@ -20,7 +20,8 @@ HDRS := cli.h       \
         scaffold.h  \
         templates/entrypoint.h \
         templates/makefile.h   \
-        templates/test.h
+        templates/test.h       \
+        ../include/caravel/version.h
 
 .PHONY: all clean install uninstall
 

@@ -3,19 +3,21 @@
 
 #include "syscall.h"
 
-static inline uint64_t strlen(const char *s) {
+static inline uint64_t cvl_strlen(const char *s) {
     uint64_t len = 0;
     while (s[len]) len++;
     return len;
 }
 
 /**
- * Log a string message. Computes length at runtime.
+ * Log a NUL-terminated string. Computes length at runtime.
  *
  * @param msg The string to log
+ *
+ * @code log_str(name);
  */
-static inline void log(const char *msg) {
-    sol_log_(msg, strlen(msg));
+static inline void log_str(const char *msg) {
+    sol_log_(msg, cvl_strlen(msg));
 }
 
 /**
