@@ -5,11 +5,13 @@
  *   - Define DEBUG before including to enable debug logging
  *   - Define NO_TOKEN to exclude SPL Token helpers
  *   - Define NO_SYSTEM to exclude System program helpers
+ *   - Define ALLOW_DUPLICATE_ACCOUNTS to accept duplicate accounts
  */
 
 #ifndef CARAVEL_H
 #define CARAVEL_H
 
+#include "caravel/version.h"
 #include "caravel/types.h"
 #include "caravel/error.h"
 
