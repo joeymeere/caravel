@@ -1,0 +1,4 @@
+-std=c11
+-I../../include
+-Icommon
+-DNO_HEAP
