@@ -10,10 +10,9 @@ A C library for building efficient Solana programs
 
 ## Quick Start
 
-Build the CLI:
+Build and install the CLI and SDK headers:
 
 ```sh
-cd cli
 make install
 ```
 
