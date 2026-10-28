@@ -45,27 +45,15 @@
 #define IX_DATA_AS(params, type) ((type *)IX_DATA(params))
 
 
-#define _ACCOUNT_VALIDATE(name, flags) \
-    if (((flags) & SIGNER) && !params->accounts[_idx].is_signer) \
-        return ERROR_MISSING_REQUIRED_SIGNATURE; \
-    if (((flags) & WRITABLE) && !params->accounts[_idx].is_writable) \
-        return ERROR_ACCOUNT_NOT_WRITABLE; \
-    ctx->name = &params->accounts[_idx]; \
-    _idx++;
-
-/* generate validate function: packed flag checks + pointer assignment */
+/*
+ * generate validate function
+ */
 #define _VALIDATE_FN(prefix, accounts_table) \
     static inline uint64_t prefix##_validate( \
         Parameters *params, \
         prefix##_accounts_t *ctx \
     ) { \
-        enum { _expected = 0 accounts_table(_ACCOUNT_COUNT) }; \
-        if (UNLIKELY(params->accounts_len < _expected)) \
-            return ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
-        uint64_t _idx = 0; \
-        accounts_table(_ACCOUNT_VALIDATE) \
-        (void)_idx; \
-        return SUCCESS; \
+        return prefix##_parse(params, ctx); \
     }
 
 /* internal - 3-arg (no ix args) */
