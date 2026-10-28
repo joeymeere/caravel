@@ -2,6 +2,7 @@
 #define ENTRYPOINT_H
 
 #include "types.h"
+#include "error.h"
 #include "util.h"
 
 static inline uint64_t _deserialize_nodup(
@@ -25,7 +26,7 @@ static inline uint64_t _deserialize_nodup(
         uint8_t dup_marker = *ptr++;
 
         if (dup_marker != 0xFF) {
-            return ERROR_INVALID_ARGUMENT;
+            return ERROR_DUPLICATE_ACCOUNT;
         } else {
             account_buf[i].is_signer   = *ptr++;
             account_buf[i].is_writable = *ptr++;
@@ -112,14 +113,32 @@ static inline uint64_t _deserialize_accounts(
     return 0; /* SUCCESS */
 }
 
+/**
+ * Duplicate-account policy
+ *
+ * Every entrypoint rejects instructions that pass the same account
+ * more than once with ERROR_DUPLICATE_ACCOUNT by default. 
+ * This rules out aliasing bugs where two "different" accounts in 
+ * a context are really the same one, e.g. a transfer from an account to itself
+ *
+ * ALLOW_DUPLICATE_ACCOUNTS will accept duplicates instead. The duplicate
+ * entries then alias the original account's data, and your handlers are
+ * responsible for checking keys where aliasing matters
+ */
+#ifdef ALLOW_DUPLICATE_ACCOUNTS
+#define _DESERIALIZE_ACCOUNTS _deserialize_accounts
+#else
+#define _DESERIALIZE_ACCOUNTS _deserialize_nodup
+#endif
+
 static inline uint64_t _deserialize_full(
     const uint8_t *input,
     Parameters *params,
     AccountInfo *account_buf,
     uint64_t account_buf_len
 ) {
-    uint64_t err = _deserialize_accounts(input, params,
-                                              account_buf, account_buf_len);
+    uint64_t err = _DESERIALIZE_ACCOUNTS(input, params,
+                                         account_buf, account_buf_len);
     if (err) return err;
 
     const uint8_t *ptr = input;
@@ -155,6 +174,10 @@ static inline uint64_t _deserialize_full(
 #define _HEAP_INIT() ((void)0)
 #endif
 
+/**
+ * This uses ix data ptr in r2. If for some reason, you are using a cluster ver where
+ * SIMD-0321 is not active, then use LEGACY_ENTRYPOINT instead
+ */
 #define ENTRYPOINT(...) \
     uint64_t entrypoint(const uint8_t *input, const uint8_t *ix_data) { \
         _HEAP_INIT(); \
@@ -162,7 +185,7 @@ static inline uint64_t _deserialize_full(
         if (_ix_len == 0) return ERROR_INVALID_INSTRUCTION_DATA; \
         AccountInfo _accts[MAX_ACCOUNTS]; \
         Parameters  _p; \
-        uint64_t _err = _deserialize_nodup(input, &_p, \
+        uint64_t _err = _DESERIALIZE_ACCOUNTS(input, &_p, \
                                 _accts, MAX_ACCOUNTS); \
         if (_err) return _err; \
         _p.data       = (uint8_t *)ix_data; \
@@ -195,8 +218,8 @@ static inline uint64_t _deserialize_full(
  *   RAW_ENTRYPOINT(process);
  */
 #define RAW_ENTRYPOINT(handler) \
-    void entrypoint(const uint8_t *input) { \
-        handler(input); \
+    uint64_t entrypoint(const uint8_t *input) { \
+        return handler(input); \
     }
 
 #endif /* ENTRYPOINT_H */
