@@ -46,7 +46,7 @@ for cpu in "${cpus[@]}"; do
                 total=$((total + 1))
                 # shellcheck disable=SC2086
                 if ! log="$("$clang" --target=sbf -mcpu="$cpu" -std="$std" -O2 \
-                        -fno-builtin -Wall -Wextra -Wpedantic -Werror \
+                        -fno-builtin -ffreestanding -nostdlibinc -Wall -Wextra -Wpedantic -Werror \
                         -Wno-gnu-statement-expression \
                         -Wno-gnu-zero-variadic-macro-arguments \
                         -Wno-gnu-empty-struct -Wno-language-extension-token \

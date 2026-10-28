@@ -238,6 +238,8 @@ static int compile_platform_tools(
         cvl_cmd_arg(&cmd, "-fPIC");
         cvl_cmd_arg(&cmd, opt_level);
         cvl_cmd_arg(&cmd, "-fno-builtin");
+        cvl_cmd_arg(&cmd, "-ffreestanding");
+        cvl_cmd_arg(&cmd, "-nostdlibinc");
         cvl_cmd_arg(&cmd, "-fdata-sections");
         cvl_cmd_args(&cmd, debug_flags);
         cvl_cmd_argf(&cmd, "-I%s", inc);
@@ -279,6 +281,8 @@ static int compile_upstream(
     cvl_cmd_arg(&cmd, "bpfel");
     cvl_cmd_arg(&cmd, opt_level);
     cvl_cmd_arg(&cmd, "-fno-builtin");
+    cvl_cmd_arg(&cmd, "-ffreestanding");
+    cvl_cmd_arg(&cmd, "-nostdlibinc");
     cvl_cmd_arg(&cmd, "-fdata-sections");
     cvl_cmd_args(&cmd, debug_flags);
     cvl_cmd_arg(&cmd, "-emit-llvm");

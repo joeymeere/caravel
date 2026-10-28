@@ -2,7 +2,7 @@
   "name": "amm-tests",
   "version": "1.0.0",
   "scripts": {
-    "test": "npx ts-mocha -p tsconfig.json ./*.test.ts"
+    "test": "mocha --node-option import=tsx './*.test.ts'"
   },
   "dependencies": {
     "@solana/kit": "^6.5.0",
@@ -12,7 +12,7 @@
     "chai": "^4.3.0",
     "litesvm": "^1.4.1",
     "mocha": "^10.0.0",
-    "ts-mocha": "^10.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.0.0"
   }
 }

@@ -35,7 +35,7 @@ static const char *TPL_MAKEFILE =
 "  LDEXTRA :=\n"
 "endif\n"
 "\n"
-"CFLAGS  := --target=sbf $(ARCH) -fPIC -O2 -fno-builtin -I$(CARAVEL_INCLUDE)\n"
+"CFLAGS  := --target=sbf $(ARCH) -fPIC -O2 -fno-builtin -ffreestanding -nostdlibinc -I$(CARAVEL_INCLUDE)\n"
 "LDFLAGS := -z notext -shared --Bdynamic --gc-sections $(LDEXTRA) $(CARAVEL_INCLUDE)/$(SCRIPT) --entry entrypoint\n"
 "\n"
 "SRCS := $(wildcard $(SRC_DIR)/*.c)\n"
