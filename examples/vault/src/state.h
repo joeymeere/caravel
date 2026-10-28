@@ -5,7 +5,7 @@
 
 typedef struct {
     Pubkey authority;
-    uint8_t   bump;
+    uint8_t bump;
 } VaultState;
 
 #endif

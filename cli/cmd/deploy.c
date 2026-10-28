@@ -2,7 +2,8 @@
 #include "config.h"
 
 int cmd_deploy(int argc, char **argv) {
-    (void)argc; (void)argv;
+    (void)argc;
+    (void)argv;
 
     CvlConfig cfg;
     if (cvl_config_load("Caravel.toml", &cfg) != 0) {
@@ -11,19 +12,24 @@ int cmd_deploy(int argc, char **argv) {
     }
 
     char so_path[CVL_MAX_PATH];
-    snprintf(so_path, sizeof(so_path), "%s/program.so", cfg.build_dir);
+    if (cvl_fmt(so_path, sizeof(so_path), "%s/program.so", cfg.build_dir))
+        return 1;
 
     if (!cvl_file_exists(so_path)) {
-        fprintf(stderr,
-            "err: %s not found — run 'caravel build' first\n", so_path);
+        fprintf(
+            stderr, "err: %s not found — run 'caravel build' first\n", so_path
+        );
         return 1;
     }
 
     printf("\n  Deploying %s v%s\n\n", cfg.name, cfg.version);
 
-    char cmd[CVL_MAX_PATH * 2];
-    snprintf(cmd, sizeof(cmd), "solana program deploy %s", so_path);
-    int rc = cvl_run_command(cmd);
+    CvlCmd cmd;
+    cvl_cmd_init(&cmd, "solana");
+    cvl_cmd_arg(&cmd, "program");
+    cvl_cmd_arg(&cmd, "deploy");
+    cvl_cmd_arg(&cmd, so_path);
+    int rc = cvl_cmd_run(&cmd, NULL, NULL);
     if (rc != 0) {
         fprintf(stderr, "\nerr: deploy failed (exit %d)\n", rc);
         return 1;

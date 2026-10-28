@@ -5,16 +5,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
 #include <dirent.h>
+#include <ctype.h>
+#include <limits.h>
 
 #include "../include/caravel/version.h"
 
 #define CVL_CLI_VERSION CARAVEL_VERSION_STRING
-#define CVL_MAX_PATH 1024
-#define CVL_MAX_NAME 128
+#define CVL_MAX_PATH    1024
+#define CVL_MAX_NAME    128
 
 typedef struct {
     char name[CVL_MAX_NAME];
@@ -42,8 +45,9 @@ int cvl_config_load(const char *path, CvlConfig *cfg);
 
 int cvl_scaffold_project(const char *name, const char *sbf_ver);
 
-const char *cvl_find_tool(const char *env_var, const char *tool_name,
-                          char *buf, size_t bufsz);
+const char *cvl_find_tool(
+    const char *env_var, const char *tool_name, char *buf, size_t bufsz
+);
 
 static inline int cvl_mkdir_p(const char *path) {
     char tmp[CVL_MAX_PATH];
@@ -69,24 +73,27 @@ static inline int cvl_file_exists(const char *path) {
     return stat(path, &st) == 0;
 }
 
-static inline const char *cvl_find_include(char *buf, size_t bufsz) {
-    const char *home = getenv("HOME");
-    if (home) {
-        snprintf(buf, bufsz, "%s/.local/share/caravel/include", home);
-        if (cvl_file_exists(buf)) return buf;
-    }
-    if (cvl_file_exists("/usr/local/share/caravel/include"))
-        return "/usr/local/share/caravel/include";
-    if (home) {
-        snprintf(buf, bufsz, "%s/.local/share/caravel/include", home);
-        return buf;
-    }
-    return NULL;
-}
+int cvl_fmt(char *buf, size_t size, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
-static inline int cvl_run_command(const char *cmd) {
-    printf("  > %s\n", cmd);
-    return system(cmd);
-}
+void cvl_copy(char *dst, size_t size, const char *src);
+
+const char *cvl_find_include(char *buf, size_t size);
+
+typedef struct {
+    char **argv;
+    int argc;
+    int cap;
+    int oom;
+} CvlCmd;
+
+void cvl_cmd_init(CvlCmd *c, const char *prog);
+void cvl_cmd_arg(CvlCmd *c, const char *arg);
+void cvl_cmd_argf(CvlCmd *c, const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
+void cvl_cmd_args(CvlCmd *c, const char *flags);
+void cvl_cmd_free(CvlCmd *c);
+
+int cvl_cmd_run(CvlCmd *c, const char *cwd, const char *stdout_path);
 
 #endif /* CVL_CLI_H */

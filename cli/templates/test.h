@@ -6,7 +6,7 @@ static const char *TPL_PACKAGE_JSON =
 "  \"name\": \"%s-tests\",\n"
 "  \"version\": \"1.0.0\",\n"
 "  \"scripts\": {\n"
-"    \"test\": \"npx ts-mocha -p tsconfig.json ./*.test.ts\"\n"
+"    \"test\": \"mocha --node-option import=tsx './*.test.ts'\"\n"
 "  },\n"
 "  \"dependencies\": {\n"
 "    \"@solana/kit\": \"^6.5.0\",\n"
@@ -16,7 +16,7 @@ static const char *TPL_PACKAGE_JSON =
 "    \"chai\": \"^4.3.0\",\n"
 "    \"litesvm\": \"^1.4.1\",\n"
 "    \"mocha\": \"^10.0.0\",\n"
-"    \"ts-mocha\": \"^10.0.0\",\n"
+"    \"tsx\": \"^4.0.0\",\n"
 "    \"typescript\": \"^5.0.0\"\n"
 "  }\n"
 "}\n";

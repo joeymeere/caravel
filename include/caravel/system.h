@@ -10,13 +10,14 @@
 
 #include "types.h"
 #include "error.h"
+#include "util.h"
 #include "cpi.h"
 #include "util.h"
 
-#define SYSTEM_IX_CREATE_ACCOUNT  0
-#define SYSTEM_IX_ASSIGN          1
-#define SYSTEM_IX_TRANSFER        2
-#define SYSTEM_IX_ALLOCATE        8
+#define SYSTEM_IX_CREATE_ACCOUNT 0
+#define SYSTEM_IX_ASSIGN         1
+#define SYSTEM_IX_TRANSFER       2
+#define SYSTEM_IX_ALLOCATE       8
 
 /**
  * Transfer lamports from one account to another via the System program.
@@ -39,8 +40,8 @@ static inline uint64_t system_transfer(
 ) {
     /* System transfer instruction: u32 index (2) + u64 lamports */
     uint8_t ix_data[12];
-    *(uint32_t *)ix_data = SYSTEM_IX_TRANSFER;
-    *(uint64_t *)(ix_data + 4) = lamports;
+    cvl_store_u32(ix_data, SYSTEM_IX_TRANSFER);
+    cvl_store_u64(ix_data + 4, lamports);
 
     AccountMeta metas[2] = {
         meta_writable_signer(from->key),
@@ -82,8 +83,8 @@ static inline uint64_t system_transfer_signed(
     int signer_seeds_len
 ) {
     uint8_t ix_data[12];
-    *(uint32_t *)ix_data = SYSTEM_IX_TRANSFER;
-    *(uint64_t *)(ix_data + 4) = lamports;
+    cvl_store_u32(ix_data, SYSTEM_IX_TRANSFER);
+    cvl_store_u64(ix_data + 4, lamports);
 
     AccountMeta metas[2] = {
         meta_writable_signer(from->key),
@@ -98,8 +99,9 @@ static inline uint64_t system_transfer_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -127,9 +129,9 @@ static inline uint64_t system_create_account(
 ) {
     /* CreateAccount: u32 index (0) + u64 lamports + u64 space + [32] owner */
     uint8_t ix_data[52];
-    *(uint32_t *)ix_data = SYSTEM_IX_CREATE_ACCOUNT;
-    *(uint64_t *)(ix_data + 4) = lamports;
-    *(uint64_t *)(ix_data + 12) = space;
+    cvl_store_u32(ix_data, SYSTEM_IX_CREATE_ACCOUNT);
+    cvl_store_u64(ix_data + 4, lamports);
+    cvl_store_u64(ix_data + 12, space);
     pubkey_cpy(ix_data + 20, owner->bytes);
 
     AccountMeta metas[2] = {
@@ -176,9 +178,9 @@ static inline uint64_t system_create_account_signed(
     int signer_seeds_len
 ) {
     uint8_t ix_data[52];
-    *(uint32_t *)ix_data = SYSTEM_IX_CREATE_ACCOUNT;
-    *(uint64_t *)(ix_data + 4) = lamports;
-    *(uint64_t *)(ix_data + 12) = space;
+    cvl_store_u32(ix_data, SYSTEM_IX_CREATE_ACCOUNT);
+    cvl_store_u64(ix_data + 4, lamports);
+    cvl_store_u64(ix_data + 12, space);
     pubkey_cpy(ix_data + 20, owner->bytes);
 
     AccountMeta metas[2] = {
@@ -194,8 +196,9 @@ static inline uint64_t system_create_account_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -216,8 +219,8 @@ static inline uint64_t system_allocate(
     int accounts_len
 ) {
     uint8_t ix_data[12];
-    *(uint32_t *)ix_data = SYSTEM_IX_ALLOCATE;
-    *(uint64_t *)(ix_data + 4) = space;
+    cvl_store_u32(ix_data, SYSTEM_IX_ALLOCATE);
+    cvl_store_u64(ix_data + 4, space);
 
     AccountMeta metas[1] = {
         meta_writable_signer(account->key),
@@ -252,7 +255,7 @@ static inline uint64_t system_assign(
     int accounts_len
 ) {
     uint8_t ix_data[36];
-    *(uint32_t *)ix_data = SYSTEM_IX_ASSIGN;
+    cvl_store_u32(ix_data, SYSTEM_IX_ASSIGN);
     pubkey_cpy(ix_data + 4, owner->bytes);
 
     AccountMeta metas[1] = {
@@ -282,7 +285,7 @@ static inline uint64_t system_assign_signed(
     int signer_seeds_len
 ) {
     uint8_t ix_data[36];
-    *(uint32_t *)ix_data = SYSTEM_IX_ASSIGN;
+    cvl_store_u32(ix_data, SYSTEM_IX_ASSIGN);
     pubkey_cpy(ix_data + 4, owner->bytes);
 
     AccountMeta metas[1] = {
@@ -297,8 +300,9 @@ static inline uint64_t system_assign_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 #endif /* SYSTEM_H */

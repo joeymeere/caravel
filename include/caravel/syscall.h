@@ -10,6 +10,8 @@
  * args r1-r5, and result in r0
  */
 #ifdef CVL_STATIC_SYSCALLS
+/* hand-aligned stub generators + hash table: keep layout */
+/* clang-format off */
 
 /* returning syscall, no args, result cast from r0 */
 #define CVL_SYS_R0(ret, name, h) \
@@ -112,6 +114,7 @@ CVL_SYS_R1(uint64_t, sol_get_epoch_stake,     0x5be92f4a, const Pubkey *)
 CVL_SYS_V0(abort,                             0xb6fc1a11)
 CVL_SYS_V4(sol_panic_,                        0x686093bb, const char *, uint64_t, uint64_t, uint64_t)
 
+/* clang-format on */
 #else
 
 /**
@@ -122,8 +125,9 @@ extern void sol_log_(const char *message, uint64_t len);
 /**
  * Prints 64 bit values represented in hexadecimal to stdout
  */
-extern void sol_log_64_(uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                        uint64_t arg4, uint64_t arg5);
+extern void sol_log_64_(
+    uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5
+);
 
 /**
  * Prints the hexadecimal representation of a public key
@@ -140,7 +144,8 @@ extern void sol_log_compute_units_(void);
 /**
  * Print the base64 representation of some arrays.
  */
-extern void sol_log_data(const uint8_t *data[], const uint64_t data_len[], uint64_t count);
+extern void
+sol_log_data(const uint8_t *data[], const uint64_t data_len[], uint64_t count);
 
 /**
  * Copies memory
@@ -160,7 +165,7 @@ extern void *sol_memset_(void *dest, uint8_t val, uint64_t n);
 /**
  * Compares memory
  */
-extern int   sol_memcmp_(const void *a, const void *b, uint64_t n, int *result);
+extern int sol_memcmp_(const void *a, const void *b, uint64_t n, int *result);
 
 /**
  * Invoke another program and sign for some of the keys
@@ -174,11 +179,11 @@ extern int   sol_memcmp_(const void *a, const void *b, uint64_t n, int *result);
  * @param seeds_len Length of the seeds array
  */
 extern uint64_t sol_invoke_signed_c(
-    const Instruction   *instruction,
-    const AccountInfo   *account_infos,
-    int                     account_infos_len,
-    const SignerSeeds   *signer_seeds,
-    int                     signer_seeds_len
+    const Instruction *instruction,
+    const AccountInfo *account_infos,
+    int account_infos_len,
+    const SignerSeeds *signer_seeds,
+    int signer_seeds_len
 );
 
 /**
@@ -191,9 +196,9 @@ extern uint64_t sol_invoke_signed_c(
  */
 extern uint64_t sol_create_program_address(
     const SignerSeed *seeds,
-    int                  seeds_len,
-    const Pubkey     *program_id,
-    Pubkey           *address
+    int seeds_len,
+    const Pubkey *program_id,
+    Pubkey *address
 );
 
 /**
@@ -207,10 +212,10 @@ extern uint64_t sol_create_program_address(
  */
 extern uint64_t sol_try_find_program_address(
     const SignerSeed *seeds,
-    int                  seeds_len,
-    const Pubkey     *program_id,
-    Pubkey           *address,
-    uint8_t             *bump_seed
+    int seeds_len,
+    const Pubkey *program_id,
+    Pubkey *address,
+    uint8_t *bump_seed
 );
 
 /**
@@ -220,11 +225,8 @@ extern uint64_t sol_try_find_program_address(
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
-extern uint64_t sol_sha256(
-    const SignerSeed *vals,
-    uint64_t              vals_len,
-    uint8_t               result[32]
-);
+extern uint64_t
+sol_sha256(const SignerSeed *vals, uint64_t vals_len, uint8_t result[32]);
 
 /**
  * Keccak256
@@ -233,11 +235,8 @@ extern uint64_t sol_sha256(
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
-extern uint64_t sol_keccak256(
-    const SignerSeed *vals,
-    uint64_t              vals_len,
-    uint8_t               result[32]
-);
+extern uint64_t
+sol_keccak256(const SignerSeed *vals, uint64_t vals_len, uint8_t result[32]);
 
 /**
  * Get the clock sysvar
@@ -263,11 +262,8 @@ extern uint64_t sol_get_rent_sysvar(void *rent);
  * @param program_id Program id of the signer
  * @return SUCCESS on success
  */
-extern uint64_t sol_get_return_data(
-    uint8_t   *data,
-    uint64_t   data_len,
-    Pubkey *program_id
-);
+extern uint64_t
+sol_get_return_data(uint8_t *data, uint64_t data_len, Pubkey *program_id);
 
 /**
  * Set the return data
@@ -275,10 +271,7 @@ extern uint64_t sol_get_return_data(
  * @param data Pointer to a uint8_t array to set
  * @param data_len Length of the data array
  */
-extern void sol_set_return_data(
-    const uint8_t *data,
-    uint64_t       data_len
-);
+extern void sol_set_return_data(const uint8_t *data, uint64_t data_len);
 
 /**
  * Get the stack height
@@ -299,11 +292,8 @@ extern uint64_t sol_remaining_compute_units(void);
  * @param vals_len Number of pairs
  * @param result 32 byte array to hold the result
  */
-extern uint64_t sol_blake3(
-    const SignerSeed *vals,
-    uint64_t              vals_len,
-    uint8_t               result[32]
-);
+extern uint64_t
+sol_blake3(const SignerSeed *vals, uint64_t vals_len, uint8_t result[32]);
 
 /**
  * Poseidon hash (ZK-friendly)
@@ -315,11 +305,11 @@ extern uint64_t sol_blake3(
  * @param result 32 byte array to hold the result
  */
 extern uint64_t sol_poseidon(
-    uint64_t              parameters,
-    uint64_t              endianness,
+    uint64_t parameters,
+    uint64_t endianness,
     const SignerSeed *vals,
-    uint64_t              vals_len,
-    uint8_t               result[32]
+    uint64_t vals_len,
+    uint8_t result[32]
 );
 
 /**
@@ -333,9 +323,9 @@ extern uint64_t sol_poseidon(
  */
 extern uint64_t sol_secp256k1_recover(
     const uint8_t *hash,
-    uint64_t       recovery_id,
+    uint64_t recovery_id,
     const uint8_t *signature,
-    uint8_t       *result
+    uint8_t *result
 );
 
 /**
@@ -347,9 +337,7 @@ extern uint64_t sol_secp256k1_recover(
  * @return 0 if valid
  */
 extern uint64_t sol_curve_validate_point(
-    uint64_t       curve_id,
-    const uint8_t *point,
-    uint8_t       *result
+    uint64_t curve_id, const uint8_t *point, uint8_t *result
 );
 
 /**
@@ -362,11 +350,11 @@ extern uint64_t sol_curve_validate_point(
  * @param result Result point
  */
 extern uint64_t sol_curve_group_op(
-    uint64_t       curve_id,
-    uint64_t       group_op,
+    uint64_t curve_id,
+    uint64_t group_op,
     const uint8_t *left,
     const uint8_t *right,
-    uint8_t       *result
+    uint8_t *result
 );
 
 /**
@@ -379,11 +367,11 @@ extern uint64_t sol_curve_group_op(
  * @param result Result point
  */
 extern uint64_t sol_curve_multiscalar_mul(
-    uint64_t       curve_id,
+    uint64_t curve_id,
     const uint8_t *scalars,
     const uint8_t *points,
-    uint64_t       points_len,
-    uint8_t       *result
+    uint64_t points_len,
+    uint8_t *result
 );
 
 /**
@@ -395,10 +383,10 @@ extern uint64_t sol_curve_multiscalar_mul(
  * @param result Result buffer (64 bytes for add/mul, 32 for pairing)
  */
 extern uint64_t sol_alt_bn128_group_op(
-    uint64_t       group_op,
+    uint64_t group_op,
     const uint8_t *input,
-    uint64_t       input_size,
-    uint8_t       *result
+    uint64_t input_size,
+    uint8_t *result
 );
 
 /**
@@ -410,10 +398,7 @@ extern uint64_t sol_alt_bn128_group_op(
  * @param result Output buffer
  */
 extern uint64_t sol_alt_bn128_compression(
-    uint64_t       op,
-    const uint8_t *input,
-    uint64_t       input_size,
-    uint8_t       *result
+    uint64_t op, const uint8_t *input, uint64_t input_size, uint8_t *result
 );
 
 /**
@@ -422,10 +407,7 @@ extern uint64_t sol_alt_bn128_compression(
  * @param params Serialized {base_len(32), exp_len(32), mod_len(32), base, exp, mod}
  * @param result Output buffer (mod_len bytes)
  */
-extern uint64_t sol_big_mod_exp(
-    const uint8_t *params,
-    uint8_t       *result
-);
+extern uint64_t sol_big_mod_exp(const uint8_t *params, uint8_t *result);
 
 /**
  * Get the epoch schedule sysvar
@@ -453,10 +435,7 @@ extern uint64_t sol_get_last_restart_slot(void *slot);
  * @param length Number of bytes to read
  */
 extern uint64_t sol_get_sysvar(
-    const Pubkey *sysvar_id,
-    uint8_t         *result,
-    uint64_t         offset,
-    uint64_t         length
+    const Pubkey *sysvar_id, uint8_t *result, uint64_t offset, uint64_t length
 );
 
 /**
@@ -471,11 +450,11 @@ extern uint64_t sol_get_sysvar(
  * @return 1 if found, 0 if index out of range
  */
 extern uint64_t sol_get_processed_sibling_instruction(
-    uint64_t   index,
-    void      *meta,
+    uint64_t index,
+    void *meta,
     Pubkey *program_id,
-    uint8_t   *data,
-    void      *accounts
+    uint8_t *data,
+    void *accounts
 );
 
 /**
@@ -499,8 +478,8 @@ extern void abort(void);
  * @param line Source line number
  * @param column Source column number
  */
-extern void sol_panic_(const char *message, uint64_t len,
-                       uint64_t line, uint64_t column);
+extern void
+sol_panic_(const char *message, uint64_t len, uint64_t line, uint64_t column);
 
 #endif /* CVL_STATIC_SYSCALLS */
 

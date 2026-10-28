@@ -8,11 +8,8 @@
 /**
  * Invoke a cross-program instruction (no signer seeds).
  */
-static inline uint64_t invoke(
-    const Instruction *ix,
-    const AccountInfo *accounts,
-    int accounts_len
-) {
+static inline uint64_t
+invoke(const Instruction *ix, const AccountInfo *accounts, int accounts_len) {
     return sol_invoke_signed_c(ix, accounts, accounts_len, NULL, 0);
 }
 
@@ -26,36 +23,45 @@ static inline uint64_t invoke_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    return sol_invoke_signed_c(ix, accounts, accounts_len,
-                                signer_seeds, signer_seeds_len);
+    return sol_invoke_signed_c(
+        ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
  * Create an account meta for a writable signer.
  */
 static inline AccountMeta meta_writable_signer(Pubkey *pubkey) {
-    return (AccountMeta){ .pubkey = pubkey, .is_writable = true, .is_signer = true };
+    return (AccountMeta){
+        .pubkey = pubkey, .is_writable = true, .is_signer = true
+    };
 }
 
 /**
  * Create an account meta for a writable non-signer.
  */
 static inline AccountMeta meta_writable(Pubkey *pubkey) {
-    return (AccountMeta){ .pubkey = pubkey, .is_writable = true, .is_signer = false };
+    return (AccountMeta){
+        .pubkey = pubkey, .is_writable = true, .is_signer = false
+    };
 }
 
 /**
  * Create an account meta for a readonly signer.
  */
 static inline AccountMeta meta_readonly_signer(Pubkey *pubkey) {
-    return (AccountMeta){ .pubkey = pubkey, .is_writable = false, .is_signer = true };
+    return (AccountMeta){
+        .pubkey = pubkey, .is_writable = false, .is_signer = true
+    };
 }
 
 /**
  * Create an account meta for a readonly non-signer.
  */
 static inline AccountMeta meta_readonly(Pubkey *pubkey) {
-    return (AccountMeta){ .pubkey = pubkey, .is_writable = false, .is_signer = false };
+    return (AccountMeta){
+        .pubkey = pubkey, .is_writable = false, .is_signer = false
+    };
 }
 
 /**
@@ -76,40 +82,45 @@ static inline AccountMeta meta_readonly(Pubkey *pubkey) {
  *   };
  *   uint8_t data[] = { ... };
  *   CPI_INVOKE(
- *       &system_program_id, metas, 2, data, sizeof(data),
+ *       &SYSTEM_PROGRAM_ID, metas, 2, data, sizeof(data),
  *       params->accounts, params->accounts_len
  *   );
  */
-#define CPI_INVOKE(program_id, metas, metas_len, ix_data, ix_data_len, \
-                        accounts, accounts_len) \
+#define CPI_INVOKE( \
+    _program_id, _metas, _metas_len, _ix_data, _ix_data_len, _accounts, \
+    _accounts_len \
+) \
     do { \
         Instruction _ix = { \
-            .program_id    = (program_id), \
-            .accounts      = (metas), \
-            .accounts_len  = (metas_len), \
-            .data          = (ix_data), \
-            .data_len      = (ix_data_len), \
+            .program_id   = (Pubkey *)(_program_id), \
+            .accounts     = (_metas), \
+            .accounts_len = (_metas_len), \
+            .data         = (_ix_data), \
+            .data_len     = (_ix_data_len), \
         }; \
-        uint64_t _cpi_err = invoke(&_ix, (accounts), (accounts_len)); \
+        uint64_t _cpi_err = invoke(&_ix, (_accounts), (_accounts_len)); \
         if (_cpi_err) return _cpi_err; \
     } while (0)
 
 /**
  * Build and invoke a signed CPI instruction on the stack.
  */
-#define CPI_INVOKE_SIGNED(program_id, metas, metas_len, ix_data, ix_data_len, \
-                               accounts, accounts_len, signer_seeds, signer_seeds_len) \
+#define CPI_INVOKE_SIGNED( \
+    _program_id, _metas, _metas_len, _ix_data, _ix_data_len, _accounts, \
+    _accounts_len, _signer_seeds, _signer_seeds_len \
+) \
     do { \
         Instruction _ix = { \
-            .program_id    = (program_id), \
-            .accounts      = (metas), \
-            .accounts_len  = (metas_len), \
-            .data          = (ix_data), \
-            .data_len      = (ix_data_len), \
+            .program_id   = (Pubkey *)(_program_id), \
+            .accounts     = (_metas), \
+            .accounts_len = (_metas_len), \
+            .data         = (_ix_data), \
+            .data_len     = (_ix_data_len), \
         }; \
         uint64_t _cpi_err = invoke_signed( \
-            &_ix, (accounts), (accounts_len), \
-            (signer_seeds), (signer_seeds_len)); \
+            &_ix, (_accounts), (_accounts_len), (_signer_seeds), \
+            (_signer_seeds_len) \
+        ); \
         if (_cpi_err) return _cpi_err; \
     } while (0)
 

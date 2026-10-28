@@ -1,0 +1,69 @@
+{
+  "platform_tools": "v1.57",
+  "results": {
+    "amm/v0": {
+      "cu": {
+        "add_liquidity": 7393,
+        "initialize_pool": 2695,
+        "remove_liquidity": 4981
+      },
+      "size": 13960
+    },
+    "amm/v3": {
+      "cu": {
+        "add_liquidity": 7391,
+        "initialize_pool": 2691,
+        "remove_liquidity": 4981
+      },
+      "size": 12928
+    },
+    "counter/v0": {
+      "cu": {
+        "decrement": 130,
+        "increment": 131,
+        "initialize": 1460
+      },
+      "size": 4904
+    },
+    "counter/v3": {
+      "cu": {
+        "decrement": 130,
+        "increment": 131,
+        "initialize": 1460
+      },
+      "size": 4104
+    },
+    "token-vault/v0": {
+      "cu": {
+        "create mint": 351,
+        "deposit": 3226,
+        "user ATA + mintTo": 13532,
+        "vault ATA": 13517,
+        "withdraw": 1463
+      },
+      "size": 6736
+    },
+    "token-vault/v3": {
+      "cu": {
+        "create mint": 351,
+        "deposit": 3223,
+        "user ATA + mintTo": 13532,
+        "vault ATA": 13517,
+        "withdraw": 1463
+      },
+      "size": 5744
+    },
+    "vault/v0": {
+      "cu": {
+        "withdraw": 495
+      },
+      "size": 3944
+    },
+    "vault/v3": {
+      "cu": {
+        "withdraw": 494
+      },
+      "size": 3064
+    }
+  }
+}

@@ -9,7 +9,7 @@ import {
   compileTransaction,
   createNoopSigner,
   createTransactionMessage,
-  generateKeyPair,
+  createKeyPairFromPrivateKeyBytes,
   getAddressEncoder,
   getAddressFromPublicKey,
   getProgramDerivedAddress,
@@ -32,6 +32,12 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+
+// Deterministic keypairs: PDA bump searches (and so compute units) depend on
+// addresses, so fixed keys keep CU numbers comparable run to run.
+let keySeed = 0;
+const generateKeyPair = (): Promise<CryptoKeyPair> =>
+  createKeyPairFromPrivateKeyBytes(new Uint8Array(32).fill(++keySeed));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const LAMPORTS_PER_SOL = 1_000_000_000n;

@@ -7,7 +7,7 @@ STATE(TokenVaultState)
 typedef struct {
     Pubkey authority;
     Pubkey mint;
-    uint8_t   bump;
+    uint8_t bump;
 } TokenVaultState;
 
 #endif

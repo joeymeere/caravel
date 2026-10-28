@@ -1,16 +1,11 @@
 #include "pool.h"
 
-uint64_t swap(
-    swap_accounts_t *ctx, swap_args_t *args, Parameters *params
-) {
-    if (args->amount_in == 0)
-        return AMM_ERROR_ZERO_AMOUNT;
-    if (args->direction > 1)
-        return AMM_ERROR_INVALID_DIRECTION;
+uint64_t swap(swap_accounts_t *ctx, swap_args_t *args, Parameters *params) {
+    if (args->amount_in == 0) return AMM_ERROR_ZERO_AMOUNT;
+    if (args->direction > 1) return AMM_ERROR_INVALID_DIRECTION;
 
     PoolState *state = ACCOUNT_STATE(ctx->pool_state, PoolState);
-    if (!state->is_initialized)
-        return AMM_ERROR_NOT_INITIALIZED;
+    if (!state->is_initialized) return AMM_ERROR_NOT_INITIALIZED;
 
     TokenAccount *va = TOKEN_ACCOUNT(ctx->vault_a);
     TokenAccount *vb = TOKEN_ACCOUNT(ctx->vault_b);
@@ -35,11 +30,10 @@ uint64_t swap(
     }
 
     uint64_t amount_in_fee = args->amount_in * 997;
-    uint64_t denom = reserve_in * 1000 + amount_in_fee;
-    uint64_t amount_out = mul_div_u64(reserve_out, amount_in_fee, denom);
+    uint64_t denom         = reserve_in * 1000 + amount_in_fee;
+    uint64_t amount_out    = mul_div_u64(reserve_out, amount_in_fee, denom);
 
-    if (amount_out < args->min_amount_out)
-        return AMM_ERROR_SLIPPAGE_EXCEEDED;
+    if (amount_out < args->min_amount_out) return AMM_ERROR_SLIPPAGE_EXCEEDED;
 
     SignerSeed pool_seeds[] = {
         SEED_STR("amm"),
@@ -47,17 +41,16 @@ uint64_t swap(
         SEED_PUBKEY(&state->mint_b),
         SEED_U8(&state->bump),
     };
-    SignerSeeds pool_signer = { .seeds = pool_seeds, .len = 4 };
+    SignerSeeds pool_signer = {.seeds = pool_seeds, .len = 4};
 
     TRY(token_transfer(
-        user_in, vault_in, ctx->user, args->amount_in,
-        params->accounts, (int)params->accounts_len
+        user_in, vault_in, ctx->user, args->amount_in, params->accounts,
+        (int)params->accounts_len
     ));
 
     TRY(token_transfer_signed(
-        vault_out, user_out, ctx->pool_state, amount_out,
-        params->accounts, (int)params->accounts_len,
-        &pool_signer, 1
+        vault_out, user_out, ctx->pool_state, amount_out, params->accounts,
+        (int)params->accounts_len, &pool_signer, 1
     ));
 
     return SUCCESS;

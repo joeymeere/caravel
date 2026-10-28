@@ -5,14 +5,14 @@
 #include "error.h"
 #include "log.h"
 
-#define ACCOUNT_KEY(acc)        ((acc)->key)
-#define ACCOUNT_LAMPORTS(acc)   (*(acc)->lamports)
-#define ACCOUNT_DATA(acc)       ((acc)->data)
-#define ACCOUNT_DATA_LEN(acc)   ((acc)->data_len)
-#define ACCOUNT_OWNER(acc)      ((acc)->owner)
-#define ACCOUNT_IS_SIGNER(acc)  ((acc)->is_signer)
-#define ACCOUNT_IS_WRITABLE(acc)((acc)->is_writable)
-#define ACCOUNT_EXECUTABLE(acc) ((acc)->executable)
+#define ACCOUNT_KEY(acc)         ((acc)->key)
+#define ACCOUNT_LAMPORTS(acc)    (*(acc)->lamports)
+#define ACCOUNT_DATA(acc)        ((acc)->data)
+#define ACCOUNT_DATA_LEN(acc)    ((acc)->data_len)
+#define ACCOUNT_OWNER(acc)       ((acc)->owner)
+#define ACCOUNT_IS_SIGNER(acc)   ((acc)->is_signer)
+#define ACCOUNT_IS_WRITABLE(acc) ((acc)->is_writable)
+#define ACCOUNT_EXECUTABLE(acc)  ((acc)->executable)
 
 /**
  * Cast account data to a typed struct pointer (zero-copy).
@@ -114,10 +114,9 @@
  *      my_instruction_accounts_t *ctx) which validates flags and populates ctx.
  */
 
-#define _ACCOUNT_FIELD(name, flags) \
-    AccountInfo *name;
+#define _ACCOUNT_FIELD(name, flags) AccountInfo *name;
 
-#define _ACCOUNT_COUNT(name, flags) + 1
+#define _ACCOUNT_COUNT(name, flags) +1
 
 /* generate validation + assignment with auto-incrementing index */
 #define _ACCOUNT_VALIDATE(name, flags) \
@@ -150,10 +149,9 @@
     typedef struct { \
         accounts_table(_ACCOUNT_FIELD) \
     } prefix##_accounts_t; \
-    \
-    static inline uint64_t prefix##_parse( \
-        Parameters *params, \
-        prefix##_accounts_t *ctx \
+\
+    static inline __attribute__((unused)) uint64_t prefix##_parse( \
+        Parameters *params, prefix##_accounts_t *ctx \
     ) { \
         enum { _expected = 0 accounts_table(_ACCOUNT_COUNT) }; \
         if (UNLIKELY(params->accounts_len < _expected)) { \
@@ -161,8 +159,7 @@
             return ERROR_NOT_ENOUGH_ACCOUNT_KEYS; \
         } \
         uint64_t _idx = 0; \
-        accounts_table(_ACCOUNT_VALIDATE) \
-        (void)_idx; \
+        accounts_table(_ACCOUNT_VALIDATE)(void) _idx; \
         return SUCCESS; \
     }
 

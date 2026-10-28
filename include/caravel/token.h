@@ -10,49 +10,50 @@
 
 #include "types.h"
 #include "error.h"
+#include "util.h"
 #include "cpi.h"
 
-#define TOKEN_IX_INITIALIZE_MINT     0
-#define TOKEN_IX_INITIALIZE_ACCOUNT  1
-#define TOKEN_IX_TRANSFER            3
-#define TOKEN_IX_APPROVE             4
-#define TOKEN_IX_REVOKE              5
-#define TOKEN_IX_SET_AUTHORITY       6
-#define TOKEN_IX_MINT_TO             7
-#define TOKEN_IX_BURN                8
-#define TOKEN_IX_CLOSE_ACCOUNT       9
+#define TOKEN_IX_INITIALIZE_MINT    0
+#define TOKEN_IX_INITIALIZE_ACCOUNT 1
+#define TOKEN_IX_TRANSFER           3
+#define TOKEN_IX_APPROVE            4
+#define TOKEN_IX_REVOKE             5
+#define TOKEN_IX_SET_AUTHORITY      6
+#define TOKEN_IX_MINT_TO            7
+#define TOKEN_IX_BURN               8
+#define TOKEN_IX_CLOSE_ACCOUNT      9
 #define TOKEN_IX_FREEZE_ACCOUNT     10
 #define TOKEN_IX_THAW_ACCOUNT       11
 #define TOKEN_IX_SYNC_NATIVE        17
 
 /* SetAuthority authority types */
-#define TOKEN_AUTHORITY_MINT_TOKENS     0
-#define TOKEN_AUTHORITY_FREEZE_ACCOUNT  1
-#define TOKEN_AUTHORITY_ACCOUNT_OWNER   2
-#define TOKEN_AUTHORITY_CLOSE_ACCOUNT   3
+#define TOKEN_AUTHORITY_MINT_TOKENS    0
+#define TOKEN_AUTHORITY_FREEZE_ACCOUNT 1
+#define TOKEN_AUTHORITY_ACCOUNT_OWNER  2
+#define TOKEN_AUTHORITY_CLOSE_ACCOUNT  3
 
 typedef struct __attribute__((packed)) {
-    Pubkey mint;            /* 0..32   */
-    Pubkey owner;           /* 32..64  */
-    uint64_t  amount;          /* 64..72  */
-    uint32_t  delegate_option; /* 72..76  (0 = None, 1 = Some) */
-    Pubkey delegate;        /* 76..108 */
-    uint8_t   state;           /* 108     (0=uninitialized, 1=initialized, 2=frozen) */
-    uint32_t  is_native_option;/* 109..113 */
-    uint64_t  is_native;       /* 113..121 */
-    uint64_t  delegated_amount;/* 121..129 */
-    uint32_t  close_authority_option; /* 129..133 */
-    Pubkey close_authority; /* 133..165 */
+    Pubkey mint;              /* 0..32   */
+    Pubkey owner;             /* 32..64  */
+    uint64_t amount;          /* 64..72  */
+    uint32_t delegate_option; /* 72..76  (0 = None, 1 = Some) */
+    Pubkey delegate;          /* 76..108 */
+    uint8_t state; /* 108     (0=uninitialized, 1=initialized, 2=frozen) */
+    uint32_t is_native_option;       /* 109..113 */
+    uint64_t is_native;              /* 113..121 */
+    uint64_t delegated_amount;       /* 121..129 */
+    uint32_t close_authority_option; /* 129..133 */
+    Pubkey close_authority;          /* 133..165 */
 } TokenAccount;
 
 typedef struct __attribute__((packed)) {
-    uint32_t  mint_authority_option; /* 0..4 */
-    Pubkey mint_authority;        /* 4..36 */
-    uint64_t  supply;                /* 36..44 */
-    uint8_t   decimals;              /* 44 */
-    uint8_t   is_initialized;        /* 45 */
-    uint32_t  freeze_authority_option; /* 46..50 */
-    Pubkey freeze_authority;      /* 50..82 */
+    uint32_t mint_authority_option;   /* 0..4 */
+    Pubkey mint_authority;            /* 4..36 */
+    uint64_t supply;                  /* 36..44 */
+    uint8_t decimals;                 /* 44 */
+    uint8_t is_initialized;           /* 45 */
+    uint32_t freeze_authority_option; /* 46..50 */
+    Pubkey freeze_authority;          /* 50..82 */
 } MintAccount;
 
 /**
@@ -106,7 +107,7 @@ static inline uint64_t token_initialize_mint(
         data_len = 67;
     } else {
         ix_data[34] = 0;
-        data_len = 35;
+        data_len    = 35;
     }
 
     AccountMeta metas[2] = {
@@ -147,7 +148,7 @@ static inline uint64_t token_initialize_account(
     AccountInfo *accounts,
     int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_INITIALIZE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_INITIALIZE_ACCOUNT};
 
     AccountMeta metas[4] = {
         meta_writable(token_account->key),
@@ -195,7 +196,7 @@ static inline uint64_t token_initialize_account_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_INITIALIZE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_INITIALIZE_ACCOUNT};
 
     AccountMeta metas[4] = {
         meta_writable(token_account->key),
@@ -212,8 +213,9 @@ static inline uint64_t token_initialize_account_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -240,7 +242,7 @@ static inline uint64_t token_transfer(
     /* Transfer: u8 instruction (3) + u64 amount */
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_TRANSFER;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(source->key),
@@ -286,7 +288,7 @@ static inline uint64_t token_transfer_signed(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_TRANSFER;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(source->key),
@@ -302,8 +304,9 @@ static inline uint64_t token_transfer_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -329,7 +332,7 @@ static inline uint64_t token_mint_to(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_MINT_TO;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(mint->key),
@@ -375,7 +378,7 @@ static inline uint64_t token_mint_to_signed(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_MINT_TO;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(mint->key),
@@ -391,8 +394,9 @@ static inline uint64_t token_mint_to_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -418,7 +422,7 @@ static inline uint64_t token_burn(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_BURN;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -464,7 +468,7 @@ static inline uint64_t token_burn_signed(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_BURN;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -480,8 +484,9 @@ static inline uint64_t token_burn_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -503,7 +508,7 @@ static inline uint64_t token_close_account(
     AccountInfo *accounts,
     int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_CLOSE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_CLOSE_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -545,7 +550,7 @@ static inline uint64_t token_close_account_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_CLOSE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_CLOSE_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -561,8 +566,9 @@ static inline uint64_t token_close_account_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -588,7 +594,7 @@ static inline uint64_t token_approve(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_APPROVE;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -634,7 +640,7 @@ static inline uint64_t token_approve_signed(
 ) {
     uint8_t ix_data[9];
     ix_data[0] = TOKEN_IX_APPROVE;
-    *(uint64_t *)(ix_data + 1) = amount;
+    cvl_store_u64(ix_data + 1, amount);
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -650,8 +656,9 @@ static inline uint64_t token_approve_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -671,7 +678,7 @@ static inline uint64_t token_revoke(
     AccountInfo *accounts,
     int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_REVOKE };
+    uint8_t ix_data[1] = {TOKEN_IX_REVOKE};
 
     AccountMeta metas[2] = {
         meta_writable(token_account->key),
@@ -710,7 +717,7 @@ static inline uint64_t token_revoke_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_REVOKE };
+    uint8_t ix_data[1] = {TOKEN_IX_REVOKE};
 
     AccountMeta metas[2] = {
         meta_writable(token_account->key),
@@ -725,8 +732,9 @@ static inline uint64_t token_revoke_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -764,7 +772,7 @@ static inline uint64_t token_set_authority(
         data_len = 35;
     } else {
         ix_data[2] = 0;
-        data_len = 3;
+        data_len   = 3;
     }
 
     AccountMeta metas[2] = {
@@ -820,7 +828,7 @@ static inline uint64_t token_set_authority_signed(
         data_len = 35;
     } else {
         ix_data[2] = 0;
-        data_len = 3;
+        data_len   = 3;
     }
 
     AccountMeta metas[2] = {
@@ -836,8 +844,9 @@ static inline uint64_t token_set_authority_signed(
         .data_len     = data_len,
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -859,7 +868,7 @@ static inline uint64_t token_freeze_account(
     AccountInfo *accounts,
     int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_FREEZE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_FREEZE_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -901,7 +910,7 @@ static inline uint64_t token_freeze_account_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_FREEZE_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_FREEZE_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -917,8 +926,9 @@ static inline uint64_t token_freeze_account_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -940,7 +950,7 @@ static inline uint64_t token_thaw_account(
     AccountInfo *accounts,
     int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_THAW_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_THAW_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -982,7 +992,7 @@ static inline uint64_t token_thaw_account_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_THAW_ACCOUNT };
+    uint8_t ix_data[1] = {TOKEN_IX_THAW_ACCOUNT};
 
     AccountMeta metas[3] = {
         meta_writable(token_account->key),
@@ -998,8 +1008,9 @@ static inline uint64_t token_thaw_account_signed(
         .data_len     = sizeof(ix_data),
     };
 
-    return invoke_signed(&ix, accounts, accounts_len,
-                              signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -1013,11 +1024,9 @@ static inline uint64_t token_thaw_account_signed(
  * @code TOKEN_SYNC_NATIVE(token_account, accounts, accounts_len);
  */
 static inline uint64_t token_sync_native(
-    AccountInfo *token_account,
-    AccountInfo *accounts,
-    int accounts_len
+    AccountInfo *token_account, AccountInfo *accounts, int accounts_len
 ) {
-    uint8_t ix_data[1] = { TOKEN_IX_SYNC_NATIVE };
+    uint8_t ix_data[1] = {TOKEN_IX_SYNC_NATIVE};
 
     AccountMeta metas[1] = {
         meta_writable(token_account->key),
@@ -1053,25 +1062,24 @@ static inline uint64_t create_associated_token_account(
     AccountInfo *accounts,
     int accounts_len
 ) {
+    AccountMeta metas[6] = {
+        meta_writable_signer(payer->key),
+        meta_writable(ata->key),
+        meta_readonly(owner->key),
+        meta_readonly(mint->key),
+        meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+        meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+    };
 
-  AccountMeta metas[6] = {
-      meta_writable_signer(payer->key),
-      meta_writable(ata->key),
-      meta_readonly(owner->key),
-      meta_readonly(mint->key),
-      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
-      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
-  };
+    Instruction ix = {
+        .program_id   = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 6,
+        .data         = (uint8_t *)NULL,
+        .data_len     = 0,
+    };
 
-  Instruction ix = {
-      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
-      .accounts = metas,
-      .accounts_len = 6,
-      .data = (uint8_t *)NULL,
-      .data_len = 0,
-  };
-
-  return invoke(&ix, accounts, accounts_len);
+    return invoke(&ix, accounts, accounts_len);
 }
 
 /**
@@ -1093,27 +1101,26 @@ static inline uint64_t create_associated_token_account_idempotent(
     AccountInfo *accounts,
     int accounts_len
 ) {
+    AccountMeta metas[6] = {
+        meta_writable_signer(payer->key),
+        meta_writable(ata->key),
+        meta_readonly(owner->key),
+        meta_readonly(mint->key),
+        meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+        meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+    };
 
-  AccountMeta metas[6] = {
-      meta_writable_signer(payer->key),
-      meta_writable(ata->key),
-      meta_readonly(owner->key),
-      meta_readonly(mint->key),
-      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
-      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
-  };
+    uint8_t ix_data[1] = {1};
 
-  uint8_t ix_data[1] = {1};
+    Instruction ix = {
+        .program_id   = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 6,
+        .data         = ix_data,
+        .data_len     = 1,
+    };
 
-  Instruction ix = {
-      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
-      .accounts = metas,
-      .accounts_len = 6,
-      .data = ix_data,
-      .data_len = 1,
-  };
-
-  return invoke(&ix, accounts, accounts_len);
+    return invoke(&ix, accounts, accounts_len);
 }
 
 /**
@@ -1139,25 +1146,26 @@ static inline uint64_t create_associated_token_account_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
+    AccountMeta metas[6] = {
+        meta_writable_signer(payer->key),
+        meta_writable(ata->key),
+        meta_readonly(owner->key),
+        meta_readonly(mint->key),
+        meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+        meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+    };
 
-  AccountMeta metas[6] = {
-      meta_writable_signer(payer->key),
-      meta_writable(ata->key),
-      meta_readonly(owner->key),
-      meta_readonly(mint->key),
-      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
-      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
-  };
+    Instruction ix = {
+        .program_id   = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 6,
+        .data         = (uint8_t *)NULL,
+        .data_len     = 0,
+    };
 
-  Instruction ix = {
-      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
-      .accounts = metas,
-      .accounts_len = 6,
-      .data = (uint8_t *)NULL,
-      .data_len = 0,
-  };
-
-  return invoke_signed(&ix, accounts, accounts_len, signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 /**
@@ -1183,27 +1191,28 @@ static inline uint64_t create_associated_token_account_idempotent_signed(
     const SignerSeeds *signer_seeds,
     int signer_seeds_len
 ) {
+    uint8_t ix_data[1] = {1};
 
-  uint8_t ix_data[1] = {1};
+    AccountMeta metas[6] = {
+        meta_writable_signer(payer->key),
+        meta_writable(ata->key),
+        meta_readonly(owner->key),
+        meta_readonly(mint->key),
+        meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
+        meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
+    };
 
-  AccountMeta metas[6] = {
-      meta_writable_signer(payer->key),
-      meta_writable(ata->key),
-      meta_readonly(owner->key),
-      meta_readonly(mint->key),
-      meta_readonly((Pubkey *)&SYSTEM_PROGRAM_ID),
-      meta_readonly((Pubkey *)&TOKEN_PROGRAM_ID),
-  };
+    Instruction ix = {
+        .program_id   = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
+        .accounts     = metas,
+        .accounts_len = 6,
+        .data         = ix_data,
+        .data_len     = 1,
+    };
 
-  Instruction ix = {
-      .program_id = (Pubkey *)&ASSOCIATED_TOKEN_PROGRAM_ID,
-      .accounts = metas,
-      .accounts_len = 6,
-      .data = ix_data,
-      .data_len = 1,
-  };
-
-  return invoke_signed(&ix, accounts, accounts_len, signer_seeds, signer_seeds_len);
+    return invoke_signed(
+        &ix, accounts, accounts_len, signer_seeds, signer_seeds_len
+    );
 }
 
 #endif /* TOKEN_H */

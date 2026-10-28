@@ -38,8 +38,8 @@ static inline void log_str(const char *msg) {
  * @param d The fourth uint64 value to log
  * @param e The fifth uint64 value to log
  */
-static inline void log_64(uint64_t a, uint64_t b, uint64_t c,
-                               uint64_t d, uint64_t e) {
+static inline void
+log_64(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e) {
     sol_log_64_(a, b, c, d, e);
 }
 
@@ -69,13 +69,13 @@ static inline void log_compute_units(void) {
 }
 
 #ifdef DEBUG
-    #define debug(msg)          log_literal(msg)
-    #define debug_u64(val)      log_u64(val)
-    #define debug_pubkey(key)   log_pubkey(key)
+#define debug(msg)        log_literal(msg)
+#define debug_u64(val)    log_u64(val)
+#define debug_pubkey(key) log_pubkey(key)
 #else
-    #define debug(msg)          ((void)0)
-    #define debug_u64(val)      ((void)0)
-    #define debug_pubkey(key)   ((void)0)
+#define debug(msg)        ((void)0)
+#define debug_u64(val)    ((void)0)
+#define debug_pubkey(key) ((void)0)
 #endif
 
 #endif /* LOG_H */

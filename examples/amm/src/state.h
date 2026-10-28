@@ -5,9 +5,9 @@
 
 STATE(PoolState)
 typedef struct {
-    uint8_t   is_initialized;  /* 0      */
-    uint8_t   bump;            /* 1      */
-    uint8_t   _padding[6];     /* 2..7   */
+    uint8_t is_initialized; /* 0      */
+    uint8_t bump;           /* 1      */
+    uint8_t _padding[6];    /* 2..7   */
     Pubkey mint_a;          /* 8..39  */
     Pubkey mint_b;          /* 40..71 */
     Pubkey vault_a;         /* 72..103 */
