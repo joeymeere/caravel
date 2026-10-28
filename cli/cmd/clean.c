@@ -2,7 +2,8 @@
 #include "config.h"
 
 int cmd_clean(int argc, char **argv) {
-    (void)argc; (void)argv;
+    (void)argc;
+    (void)argv;
 
     CvlConfig cfg;
     if (cvl_config_load("Caravel.toml", &cfg) != 0) {
@@ -17,9 +18,12 @@ int cmd_clean(int argc, char **argv) {
 
     printf("  Cleaning %s/\n", cfg.build_dir);
 
-    char cmd[CVL_MAX_PATH + 16];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", cfg.build_dir);
-    int rc = cvl_run_command(cmd);
+    CvlCmd cmd;
+    cvl_cmd_init(&cmd, "rm");
+    cvl_cmd_arg(&cmd, "-rf");
+    cvl_cmd_arg(&cmd, "--");
+    cvl_cmd_arg(&cmd, cfg.build_dir);
+    int rc = cvl_cmd_run(&cmd, NULL, NULL);
     if (rc != 0) {
         fprintf(stderr, "err: clean failed (exit %d)\n", rc);
         return 1;

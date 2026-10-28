@@ -61,16 +61,16 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    int sub_argc = argc - 2;
+    int sub_argc    = argc - 2;
     char **sub_argv = argv + 2;
 
-    if (strcmp(cmd, "init") == 0)   return cmd_init(sub_argc, sub_argv);
-    if (strcmp(cmd, "build") == 0)  return cmd_build(sub_argc, sub_argv);
-    if (strcmp(cmd, "test") == 0)   return cmd_test(sub_argc, sub_argv);
+    if (strcmp(cmd, "init") == 0) return cmd_init(sub_argc, sub_argv);
+    if (strcmp(cmd, "build") == 0) return cmd_build(sub_argc, sub_argv);
+    if (strcmp(cmd, "test") == 0) return cmd_test(sub_argc, sub_argv);
     if (strcmp(cmd, "deploy") == 0) return cmd_deploy(sub_argc, sub_argv);
-    if (strcmp(cmd, "clean") == 0)  return cmd_clean(sub_argc, sub_argv);
-    if (strcmp(cmd, "idl") == 0)    return cmd_idl(sub_argc, sub_argv);
-    if (strcmp(cmd, "dump") == 0)   return cmd_dump(sub_argc, sub_argv);
+    if (strcmp(cmd, "clean") == 0) return cmd_clean(sub_argc, sub_argv);
+    if (strcmp(cmd, "idl") == 0) return cmd_idl(sub_argc, sub_argv);
+    if (strcmp(cmd, "dump") == 0) return cmd_dump(sub_argc, sub_argv);
 
     fprintf(stderr, "err: unknown command '%s'\n", cmd);
     print_usage();

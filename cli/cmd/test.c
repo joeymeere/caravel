@@ -18,14 +18,19 @@ int cmd_test(int argc, char **argv) {
     }
 
     printf("  [2/3] Installing test dependencies...\n\n");
-    rc = cvl_run_command("cd tests && npm install");
+    CvlCmd cmd;
+    cvl_cmd_init(&cmd, "npm");
+    cvl_cmd_arg(&cmd, "install");
+    rc = cvl_cmd_run(&cmd, "tests", NULL);
     if (rc != 0) {
         fprintf(stderr, "\nerr: npm install failed (exit %d)\n", rc);
         return 1;
     }
 
     printf("\n  [3/3] Running tests...\n\n");
-    rc = cvl_run_command("cd tests && npm test");
+    cvl_cmd_init(&cmd, "npm");
+    cvl_cmd_arg(&cmd, "test");
+    rc = cvl_cmd_run(&cmd, "tests", NULL);
     if (rc != 0) {
         fprintf(stderr, "\n  Tests failed (exit %d)\n", rc);
         return 1;

@@ -21,10 +21,10 @@ static void print_dump_usage(void) {
 }
 
 int cmd_dump(int argc, char **argv) {
-    int with_source = 0;
-    int with_headers = 0;
-    int raw = 0;
-    const char *symbol = NULL;
+    int with_source      = 0;
+    int with_headers     = 0;
+    int raw              = 0;
+    const char *symbol   = NULL;
     const char *out_path = NULL;
 
     for (int i = 0; i < argc; i++) {
@@ -58,41 +58,34 @@ int cmd_dump(int argc, char **argv) {
     }
 
     char so_path[CVL_MAX_PATH];
-    snprintf(so_path, sizeof(so_path), "%s/program.so", cfg.build_dir);
+    if (cvl_fmt(so_path, sizeof(so_path), "%s/program.so", cfg.build_dir))
+        return 1;
     if (!cvl_file_exists(so_path)) {
-        fprintf(stderr, "err: %s not found; run 'caravel build' first\n", so_path);
+        fprintf(
+            stderr, "err: %s not found; run 'caravel build' first\n", so_path
+        );
         return 1;
     }
 
     char objdump_buf[CVL_MAX_PATH];
-    const char *objdump = cvl_find_tool("CVL_OBJDUMP", "llvm-objdump",
-                                         objdump_buf, sizeof(objdump_buf));
+    const char *objdump = cvl_find_tool(
+        "CVL_OBJDUMP", "llvm-objdump", objdump_buf, sizeof(objdump_buf)
+    );
 
-    char cmd[CVL_MAX_PATH * 4];
-    int off = 0;
-    off += snprintf(cmd + off, sizeof(cmd) - off, "%s -d", objdump);
-
+    CvlCmd cmd;
+    cvl_cmd_init(&cmd, objdump);
+    cvl_cmd_arg(&cmd, "-d");
     if (!raw) {
-        off += snprintf(cmd + off, sizeof(cmd) - off,
-                        " --no-show-raw-insn --print-imm-hex");
-        if (with_source)
-            off += snprintf(cmd + off, sizeof(cmd) - off, " --source");
-        if (with_headers)
-            off += snprintf(cmd + off, sizeof(cmd) - off,
-                            " --section-headers --syms");
-        if (symbol)
-            off += snprintf(cmd + off, sizeof(cmd) - off,
-                            " --disassemble-symbols=%s", symbol);
+        cvl_cmd_args(&cmd, "--no-show-raw-insn --print-imm-hex");
+        if (with_source) cvl_cmd_arg(&cmd, "--source");
+        if (with_headers) cvl_cmd_args(&cmd, "--section-headers --syms");
+        if (symbol) cvl_cmd_argf(&cmd, "--disassemble-symbols=%s", symbol);
     }
+    cvl_cmd_arg(&cmd, so_path);
 
-    off += snprintf(cmd + off, sizeof(cmd) - off, " %s", so_path);
-    if (out_path)
-        snprintf(cmd + off, sizeof(cmd) - off, " > %s", out_path);
+    if (out_path) printf("  Dumping %s -> %s\n", so_path, out_path);
 
-    if (out_path)
-        printf("  Dumping %s -> %s\n", so_path, out_path);
-
-    int rc = cvl_run_command(cmd);
+    int rc = cvl_cmd_run(&cmd, NULL, out_path);
     if (rc != 0) {
         fprintf(stderr, "\nerr: dump failed (exit %d)\n", rc);
         return 1;

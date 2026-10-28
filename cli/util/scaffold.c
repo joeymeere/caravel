@@ -67,8 +67,12 @@ int cvl_scaffold_project(const char *name, const char *sbf_ver) {
     snprintf(path, sizeof(path), "%s/Caravel.toml", name);
     {
         FILE *fp = fopen(path, "w");
-        if (!fp) { perror(path); return -1; }
-        fprintf(fp,
+        if (!fp) {
+            perror(path);
+            return -1;
+        }
+        fprintf(
+            fp,
             "[program]\n"
             "name    = \"%s\"\n"
             "version = \"0.1.0\"\n"
@@ -76,7 +80,8 @@ int cvl_scaffold_project(const char *name, const char *sbf_ver) {
             "[build]\n"
             "src_dir   = \"src\"\n"
             "build_dir = \"build\"\n",
-            name);
+            name
+        );
         fclose(fp);
     }
     printf("  [+] Caravel.toml\n");
@@ -110,12 +115,12 @@ int cvl_scaffold_project(const char *name, const char *sbf_ver) {
     printf("  [+] tests/%s.test.ts\n", name);
 
     snprintf(path, sizeof(path), "%s/.gitignore", name);
-    write_file(path,
-        "build/\n"
-        "tests/node_modules/\n"
-        "tests/dist/\n"
-        "*.bc\n"
-        "*.o\n"
+    write_file(
+        path, "build/\n"
+              "tests/node_modules/\n"
+              "tests/dist/\n"
+              "*.bc\n"
+              "*.o\n"
     );
     printf("  [+] .gitignore\n");
 

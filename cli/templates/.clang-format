@@ -1,0 +1,3 @@
+# Templates mirror the files they generate; keep their layout as written.
+DisableFormat: true
+SortIncludes: Never
