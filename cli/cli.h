@@ -10,7 +10,9 @@
 #include <errno.h>
 #include <dirent.h>
 
-#define CVL_CLI_VERSION "0.5.0"
+#include "../include/caravel/version.h"
+
+#define CVL_CLI_VERSION CARAVEL_VERSION_STRING
 #define CVL_MAX_PATH 1024
 #define CVL_MAX_NAME 128
 
