@@ -16,10 +16,9 @@ static inline uint64_t _deserialize_nodup(
     uint64_t num_accounts = *(uint64_t *)ptr;
     ptr += 8;
 
-    if (num_accounts > account_buf_len)
-        return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
+    if (num_accounts > account_buf_len) return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
 
-    params->accounts = account_buf;
+    params->accounts     = account_buf;
     params->accounts_len = num_accounts;
 
     for (uint64_t i = 0; i < num_accounts; i++) {
@@ -45,7 +44,7 @@ static inline uint64_t _deserialize_nodup(
             uint64_t data_len = *(uint64_t *)ptr;
             ptr += 8;
             account_buf[i].data_len = data_len;
-            account_buf[i].data = (uint8_t *)ptr;
+            account_buf[i].data     = (uint8_t *)ptr;
             ptr += data_len;
 
             ptr += ((-data_len) & 7) + 10240;
@@ -73,7 +72,7 @@ static inline uint64_t _deserialize_accounts(
         return ERROR_NOT_ENOUGH_ACCOUNT_KEYS;
     }
 
-    params->accounts = account_buf;
+    params->accounts     = account_buf;
     params->accounts_len = num_accounts;
 
     for (uint64_t i = 0; i < num_accounts; i++) {
@@ -100,7 +99,7 @@ static inline uint64_t _deserialize_accounts(
             uint64_t data_len = *(uint64_t *)ptr;
             ptr += 8;
             account_buf[i].data_len = data_len;
-            account_buf[i].data = (uint8_t *)ptr;
+            account_buf[i].data     = (uint8_t *)ptr;
             ptr += data_len;
 
             ptr += ((-data_len) & 7) + 10240;
@@ -137,11 +136,11 @@ static inline uint64_t _deserialize_full(
     AccountInfo *account_buf,
     uint64_t account_buf_len
 ) {
-    uint64_t err = _DESERIALIZE_ACCOUNTS(input, params,
-                                         account_buf, account_buf_len);
+    uint64_t err =
+        _DESERIALIZE_ACCOUNTS(input, params, account_buf, account_buf_len);
     if (err) return err;
 
-    const uint8_t *ptr = input;
+    const uint8_t *ptr    = input;
     uint64_t num_accounts = *(uint64_t *)ptr;
     ptr += 8;
 
@@ -150,16 +149,16 @@ static inline uint64_t _deserialize_full(
         if (dup_marker != 0xFF) {
             ptr += 7;
         } else {
-            ptr += 3 + 4 + 32 + 32 + 8; 
+            ptr += 3 + 4 + 32 + 32 + 8;
             uint64_t data_len = *(uint64_t *)ptr;
             ptr += 8 + data_len;
-            ptr += ((-data_len) & 7) + 10240 + 8; 
+            ptr += ((-data_len) & 7) + 10240 + 8;
         }
     }
 
     uint64_t data_len = *(uint64_t *)ptr;
     ptr += 8;
-    params->data = (uint8_t *)ptr;
+    params->data     = (uint8_t *)ptr;
     params->data_len = data_len;
     ptr += data_len;
 
@@ -167,6 +166,13 @@ static inline uint64_t _deserialize_full(
 
     return 0;
 }
+
+/*
+ * Lets `LEGACY_ENTRYPOINT(process);` take a trailing semicolon without an
+ * empty-declaration warning: the user's `;` completes this declaration.
+ */
+#define _CVL_SWALLOW_SEMICOLON \
+    extern int _cvl_swallow_semicolon __attribute__((unused))
 
 #if !defined(NO_HEAP) && !defined(CUSTOM_HEAP)
 #define _HEAP_INIT() heap_init()
@@ -184,18 +190,18 @@ static inline uint64_t _deserialize_full(
         uint64_t _ix_len = *(uint64_t *)(ix_data - 8); \
         if (_ix_len == 0) return ERROR_INVALID_INSTRUCTION_DATA; \
         AccountInfo _accts[MAX_ACCOUNTS]; \
-        Parameters  _p; \
-        uint64_t _err = _DESERIALIZE_ACCOUNTS(input, &_p, \
-                                _accts, MAX_ACCOUNTS); \
+        Parameters _p; \
+        uint64_t _err = \
+            _DESERIALIZE_ACCOUNTS(input, &_p, _accts, MAX_ACCOUNTS); \
         if (_err) return _err; \
-        _p.data       = (uint8_t *)ix_data; \
-        _p.data_len   = _ix_len; \
-        _p.program_id = (Pubkey *)(ix_data + _ix_len); \
+        _p.data            = (uint8_t *)ix_data; \
+        _p.data_len        = _ix_len; \
+        _p.program_id      = (Pubkey *)(ix_data + _ix_len); \
         Parameters *params = &_p; \
-        uint8_t _disc = ix_data[0]; \
+        uint8_t _disc      = ix_data[0]; \
         switch (_disc) { \
             __VA_ARGS__ \
-            default: return ERROR_UNKNOWN_INSTRUCTION; \
+        default: return ERROR_UNKNOWN_INSTRUCTION; \
         } \
     }
 
@@ -203,12 +209,13 @@ static inline uint64_t _deserialize_full(
     uint64_t entrypoint(const uint8_t *input) { \
         _HEAP_INIT(); \
         AccountInfo _accounts[MAX_ACCOUNTS]; \
-        Parameters  _params; \
-        uint64_t _err = _deserialize_full(input, &_params, \
-                                                    _accounts, MAX_ACCOUNTS); \
+        Parameters _params; \
+        uint64_t _err = \
+            _deserialize_full(input, &_params, _accounts, MAX_ACCOUNTS); \
         if (_err) return _err; \
         return handler(&_params); \
-    }
+    } \
+    _CVL_SWALLOW_SEMICOLON
 
 /**
  * Noop entrypoint — passes the raw input buffer to your handler.
@@ -220,6 +227,7 @@ static inline uint64_t _deserialize_full(
 #define RAW_ENTRYPOINT(handler) \
     uint64_t entrypoint(const uint8_t *input) { \
         return handler(input); \
-    }
+    } \
+    _CVL_SWALLOW_SEMICOLON
 
 #endif /* ENTRYPOINT_H */

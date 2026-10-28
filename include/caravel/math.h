@@ -6,7 +6,8 @@
 
 #define U64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFF)
 
-static inline uint64_t checked_add_u64(uint64_t a, uint64_t b, uint64_t *result) {
+static inline uint64_t
+checked_add_u64(uint64_t a, uint64_t b, uint64_t *result) {
     if (a > U64_MAX - b) {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -14,7 +15,8 @@ static inline uint64_t checked_add_u64(uint64_t a, uint64_t b, uint64_t *result)
     return SUCCESS;
 }
 
-static inline uint64_t checked_sub_u64(uint64_t a, uint64_t b, uint64_t *result) {
+static inline uint64_t
+checked_sub_u64(uint64_t a, uint64_t b, uint64_t *result) {
     if (a < b) {
         return ERROR_INSUFFICIENT_FUNDS;
     }
@@ -22,7 +24,8 @@ static inline uint64_t checked_sub_u64(uint64_t a, uint64_t b, uint64_t *result)
     return SUCCESS;
 }
 
-static inline uint64_t checked_mul_u64(uint64_t a, uint64_t b, uint64_t *result) {
+static inline uint64_t
+checked_mul_u64(uint64_t a, uint64_t b, uint64_t *result) {
     if (b != 0 && a > U64_MAX / b) {
         return ERROR_INVALID_ARGUMENT;
     }

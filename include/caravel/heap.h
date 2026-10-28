@@ -17,7 +17,7 @@
 #define HEAP_START ((uint64_t)0x300000000)
 
 #ifndef HEAP_SZ
-#define HEAP_SZ  32768
+#define HEAP_SZ 32768
 #endif
 
 #ifndef CUSTOM_HEAP

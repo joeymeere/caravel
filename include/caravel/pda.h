@@ -16,7 +16,7 @@
  * SignerSeed seed = SEED_STR("vault");  
  */
 #define SEED_STR(s) \
-    ((SignerSeed){ .addr = (const uint8_t *)(s), .len = sizeof(s) - 1 })
+    ((SignerSeed){.addr = (const uint8_t *)(s), .len = sizeof(s) - 1})
 
 /**
  * Create a seed from a pubkey.
@@ -28,7 +28,7 @@
  * SignerSeed seed = SEED_PUBKEY(authority_key);
  */
 #define SEED_PUBKEY(pubkey_ptr) \
-    ((SignerSeed){ .addr = (pubkey_ptr)->bytes, .len = 32 })
+    ((SignerSeed){.addr = (pubkey_ptr)->bytes, .len = 32})
 
 /**
  * Create a seed from a single byte (typically the bump seed).
@@ -39,7 +39,7 @@
  * SignerSeed seed = SEED_U8(&bump);
  */
 #define SEED_U8(byte_ptr) \
-    ((SignerSeed){ .addr = (const uint8_t *)(byte_ptr), .len = 1 })
+    ((SignerSeed){.addr = (const uint8_t *)(byte_ptr), .len = 1})
 
 /**
  * Create a seed from a raw byte buffer.
@@ -52,7 +52,7 @@
  * SignerSeed seed = SEED_BYTES(buf, length);
  */
 #define SEED_BYTES(buf, length) \
-    ((SignerSeed){ .addr = (const uint8_t *)(buf), .len = (length) })
+    ((SignerSeed){.addr = (const uint8_t *)(buf), .len = (length)})
 
 /**
  * Find a program address (PDA) and its bump seed.
@@ -81,17 +81,16 @@ static inline uint64_t find_program_address(
 
     SignerSeed parts[19]; /* max 16 seeds + bump + program_id + marker */
     int i;
-    for (i = 0; i < seeds_len; i++)
-        parts[i] = seeds[i];
+    for (i = 0; i < seeds_len; i++) parts[i] = seeds[i];
 
     uint8_t bump_byte = 255;
-    int bump_idx   = i++;
-    int pgm_idx    = i++;
-    int marker_idx = i++;
+    int bump_idx      = i++;
+    int pgm_idx       = i++;
+    int marker_idx    = i++;
 
-    parts[bump_idx]   = (SignerSeed){ .addr = &bump_byte,          .len = 1  };
-    parts[pgm_idx]    = (SignerSeed){ .addr = program_id->bytes,   .len = 32 };
-    parts[marker_idx] = (SignerSeed){ .addr = pda_marker,          .len = 21 };
+    parts[bump_idx]   = (SignerSeed){.addr = &bump_byte, .len = 1};
+    parts[pgm_idx]    = (SignerSeed){.addr = program_id->bytes, .len = 32};
+    parts[marker_idx] = (SignerSeed){.addr = pda_marker, .len = 21};
 
     for (;;) {
         sol_sha256(parts, (uint64_t)i, address->bytes);
@@ -102,8 +101,7 @@ static inline uint64_t find_program_address(
             return SUCCESS;
         }
 
-        if (bump_byte == 0)
-            break;
+        if (bump_byte == 0) break;
         bump_byte--;
     }
 
@@ -162,8 +160,8 @@ static inline void derive_address(
 
     static const uint8_t pda_marker[] = "ProgramDerivedAddress";
 
-    parts[i++] = (SignerSeed){ .addr = program_id->bytes, .len = 32 };
-    parts[i++] = (SignerSeed){ .addr = pda_marker,        .len = 21 };
+    parts[i++] = (SignerSeed){.addr = program_id->bytes, .len = 32};
+    parts[i++] = (SignerSeed){.addr = pda_marker, .len = 21};
 
     sol_sha256(parts, (uint64_t)i, address->bytes);
 }
@@ -187,7 +185,8 @@ static inline void derive_address(
     do { \
         Pubkey _expected; \
         uint64_t _pda_err = find_program_address( \
-            (seeds), (seeds_len), (program_id), &_expected, (bump_out)); \
+            (seeds), (seeds_len), (program_id), &_expected, (bump_out) \
+        ); \
         if (_pda_err) { \
             log_literal("err: PDA derivation failed"); \
             return ERROR_INVALID_PDA; \

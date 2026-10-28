@@ -7,7 +7,7 @@ import {
   appendTransactionMessageInstruction,
   compileTransaction,
   createTransactionMessage,
-  generateKeyPair,
+  createKeyPairFromPrivateKeyBytes,
   getAddressEncoder,
   getAddressFromPublicKey,
   lamports,
@@ -20,6 +20,12 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+
+// Deterministic keypairs: PDA bump searches (and so compute units) depend on
+// addresses, so fixed keys keep CU numbers comparable run to run.
+let keySeed = 0;
+const generateKeyPair = (): Promise<CryptoKeyPair> =>
+  createKeyPairFromPrivateKeyBytes(new Uint8Array(32).fill(++keySeed));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SYSTEM_PROGRAM = address("11111111111111111111111111111111");
