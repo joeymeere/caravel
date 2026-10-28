@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PLATFORM_TOOLS: v1.57
+  PLATFORM_TOOLS_MIN: v1.53
+
+jobs:
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install pinned clang-format
+        run: pip install "clang-format==$(make -s print-CLANG_FORMAT_VERSION)"
+      - run: make format-check
+
+  cli:
+    name: CLI (${{ matrix.os }}, ${{ matrix.cc }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, cc: gcc }
+          - { os: ubuntu-latest, cc: clang }
+          - { os: macos-latest,  cc: clang }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with -Werror
+        run: make cli CC=${{ matrix.cc }} WERROR=1
+      - run: ./build/caravel --version
+
+  host-tests:
+    name: Host tests (${{ matrix.os }}, ${{ matrix.cc }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, cc: gcc }
+          - { os: ubuntu-latest, cc: clang }
+          - { os: macos-latest,  cc: clang }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Units (ASan + UBSan)
+        run: make test-host CC=${{ matrix.cc }}
+
+  compile-matrix:
+    name: SBF matrix (platform-tools ${{ matrix.pt }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pt: [v1.53, v1.57]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/solana/${{ matrix.pt }}
+          key: platform-tools-${{ runner.os }}-${{ runner.arch }}-${{ matrix.pt }}
+      - run: make platform-tools PLATFORM_TOOLS=${{ matrix.pt }}
+      - name: Compile across opts, standards and SBPF versions
+        run: |
+          export SOLANA_CLANG="$HOME/.cache/solana/${{ matrix.pt }}/platform-tools/llvm/bin/clang"
+          make test-compile
+
+  examples:
+    name: Examples (${{ matrix.os }}, ${{ matrix.sbf }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        sbf: [v0, v3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: examples/*/tests/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/solana/${{ env.PLATFORM_TOOLS }}
+          key: platform-tools-${{ runner.os }}-${{ runner.arch }}-${{ env.PLATFORM_TOOLS }}
+      - run: make platform-tools PLATFORM_TOOLS=${{ env.PLATFORM_TOOLS }}
+      - run: make cli
+      - name: caravel test --sbf-ver=${{ matrix.sbf }}
+        run: make test-examples SBF_VER=${{ matrix.sbf }}
+
+  bench:
+    name: CUs & binary size
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: examples/*/tests/package-lock.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/solana/${{ env.PLATFORM_TOOLS }}
+          key: platform-tools-${{ runner.os }}-${{ runner.arch }}-${{ env.PLATFORM_TOOLS }}
+      - run: make platform-tools PLATFORM_TOOLS=${{ env.PLATFORM_TOOLS }}
+      - run: make cli
+      - name: Compare against baseline
+        run: make bench BENCH_ARGS="--summary $GITHUB_STEP_SUMMARY"

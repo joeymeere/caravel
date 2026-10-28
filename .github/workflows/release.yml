@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Tag must match version.h
+        run: |
+          get() { sed -n "s/#define CARAVEL_VERSION_$1 \([0-9]*\)/\1/p" include/caravel/version.h; }
+          version="$(get MAJOR).$(get MINOR).$(get PATCH)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version.h ($version)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check-version
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, target: linux-aarch64 }
+          - { os: macos-latest,     target: macos-aarch64 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and stage
+        run: |
+          name="caravel-${{ needs.check-version.outputs.version }}-${{ matrix.target }}"
+          make cli WERROR=1
+          make install PREFIX= DESTDIR="$PWD/dist/$name"
+          cp LICENSE README.md "dist/$name/"
+          "dist/$name/bin/caravel" --version
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*.tar.gz
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum -- *.tar.gz > SHA256SUMS && cat SHA256SUMS
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --draft --generate-notes \
+            --title "Caravel ${{ needs.check-version.outputs.version }}"
