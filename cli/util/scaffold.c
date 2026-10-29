@@ -37,13 +37,43 @@ static void to_upper(const char *src, char *dst, size_t max) {
     dst[i] = '\0';
 }
 
-int cvl_scaffold_project(const char *name, const char *sbf_ver) {
+int cvl_scaffold_project(
+    const char *name,
+    const char *sbf_ver,
+    const char *tests,
+    const char *backend
+) {
+    int ts       = strcmp(tests, "ts") == 0;
+    int mollusk  = !ts && strcmp(backend, "mollusk") == 0;
+    int seashell = !ts && strcmp(backend, "seashell") == 0;
+    char backend_line[160];
+    if (ts)
+        backend_line[0] = '\0';
+    else if (mollusk || seashell)
+        snprintf(
+            backend_line, sizeof backend_line,
+            "backend = \"%s\"  # litesvm, mollusk or seashell; a test file "
+            "can pick its own\n",
+            backend
+        );
+    else
+        snprintf(
+            backend_line, sizeof backend_line,
+            "# backend = \"litesvm\"  # or mollusk, seashell; a test file can "
+            "pick its own\n"
+        );
     char path[CVL_MAX_PATH];
     char upper[CVL_MAX_NAME];
 
     to_upper(name, upper, sizeof(upper));
 
-    printf("\n  Creating Caravel project: %s (%s)\n\n", name, sbf_ver);
+    printf(
+        "\n  Creating Caravel project: %s (%s, %s)\n\n", name, sbf_ver,
+        ts         ? "TypeScript tests"
+        : mollusk  ? "C tests on Mollusk"
+        : seashell ? "C tests on Seashell"
+                   : "C tests on LiteSVM"
+    );
 
     snprintf(path, sizeof(path), "%s", name);
     if (cvl_file_exists(path)) {
@@ -79,8 +109,12 @@ int cvl_scaffold_project(const char *name, const char *sbf_ver) {
             "\n"
             "[build]\n"
             "src_dir   = \"src\"\n"
-            "build_dir = \"build\"\n",
-            name
+            "build_dir = \"build\"\n"
+            "\n"
+            "[test]\n"
+            "runner = \"%s\"\n"
+            "%s",
+            name, ts ? "ts" : "c", backend_line
         );
         fclose(fp);
     }
@@ -102,17 +136,27 @@ int cvl_scaffold_project(const char *name, const char *sbf_ver) {
     write_file_fmt(path, TPL_INSTRUCTIONS_H, upper, upper, upper);
     printf("  [+] src/instructions.h\n");
 
-    snprintf(path, sizeof(path), "%s/tests/package.json", name);
-    write_file_fmt(path, TPL_PACKAGE_JSON, name, name);
-    printf("  [+] tests/package.json\n");
+    if (ts) {
+        snprintf(path, sizeof(path), "%s/tests/package.json", name);
+        write_file_fmt(path, TPL_PACKAGE_JSON, name, name);
+        printf("  [+] tests/package.json\n");
 
-    snprintf(path, sizeof(path), "%s/tests/tsconfig.json", name);
-    write_file(path, TPL_TSCONFIG_JSON);
-    printf("  [+] tests/tsconfig.json\n");
+        snprintf(path, sizeof(path), "%s/tests/tsconfig.json", name);
+        write_file(path, TPL_TSCONFIG_JSON);
+        printf("  [+] tests/tsconfig.json\n");
 
-    snprintf(path, sizeof(path), "%s/tests/%s.test.ts", name, name);
-    write_file_fmt(path, TPL_TEST_TS, name, name);
-    printf("  [+] tests/%s.test.ts\n", name);
+        snprintf(path, sizeof(path), "%s/tests/%s.test.ts", name, name);
+        write_file_fmt(path, TPL_TEST_TS, name, name);
+        printf("  [+] tests/%s.test.ts\n", name);
+    } else {
+        snprintf(path, sizeof(path), "%s/tests/%s.c", name, name);
+        write_file(
+            path, mollusk    ? TPL_TEST_C_MOLLUSK
+                  : seashell ? TPL_TEST_C_SEASHELL
+                             : TPL_TEST_C
+        );
+        printf("  [+] tests/%s.c\n", name);
+    }
 
     snprintf(path, sizeof(path), "%s/.gitignore", name);
     write_file(

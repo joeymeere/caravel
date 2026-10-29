@@ -27,8 +27,6 @@ SBF_VER        ?= v0
 PLATFORM_TOOLS ?= v1.57
 EXAMPLES       := counter vault token-vault amm
 
-# Output differs between clang-format releases; CI pins this version
-# (`pip install clang-format==$(CLANG_FORMAT_VERSION)`).
 CLANG_FORMAT         ?= clang-format
 CLANG_FORMAT_VERSION := 22.1.8
 FORMAT_SRCS = $(shell git ls-files -co --exclude-standard '*.c' '*.h' \
@@ -68,6 +66,7 @@ install: $(CLI)
 	cp -f include/caravel.h include/bpf.ld include/sbpfv3.ld \
 	      $(DESTDIR)$(DATADIR)/include/
 	cp -f include/caravel/*.h $(DESTDIR)$(DATADIR)/include/caravel/
+	cp -Rf include/caravel/test $(DESTDIR)$(DATADIR)/include/caravel/
 	@echo "Installed caravel to $(DESTDIR)$(PREFIX)/bin"
 	@echo "Installed SDK headers to $(DESTDIR)$(DATADIR)/include"
 
@@ -123,6 +122,5 @@ platform-tools:
 clean:
 	rm -rf $(BUILD)
 
-# `make -s print-VAR` echoes a variable (CI reads CLANG_FORMAT_VERSION this way)
 print-%:
 	@echo $($*)

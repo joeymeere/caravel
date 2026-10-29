@@ -5,7 +5,7 @@ A C library for building efficient Solana programs
 ## Prerequisites
 
 - **Platform Tools** — install via `solana-install` or download from the [Agave releases](https://github.com/anza-xyz/agave/releases).
-- **Node.js** (v18+, for testing)
+- **A host C compiler** (`cc`, for tests) — or **Node.js** (v20+) for TypeScript tests
 - **Agave CLI**
 
 ## Quick Start
@@ -299,13 +299,115 @@ debug_pubkey(key);
 | Withdraw CUs | 353 | 411 |
 | Binary Size | 3,968 bytes | 5,848 bytes |
 
+## Testing
+
+`caravel test` builds the program, then compiles each `tests/<name>.c` with
+the host compiler and runs it on [LiteSVM](https://github.com/LiteSVM/litesvm)
+through [litesvm-cxx](https://github.com/joeymeere/litesvm-cxx), which it
+downloads on first use. Tests build instructions from the program's own
+`IX()` declarations (keep them in a header such as `src/instructions.h`):
+
+```c
+#include <caravel/test.h>
+#include "../src/instructions.h"
+#include "../src/state.h"
+
+static Keypair payer, counter;
+
+SETUP {
+    payer   = keypair(1);
+    counter = keypair(2);
+    svm_airdrop(svm, &payer.pubkey, SOL(10));
+}
+
+TEST(initializes_a_counter) {
+    Ix ix = MAKE_IX(initialize, .payer = payer.pubkey,
+                    .counter = counter.pubkey,
+                    .system_program = SYSTEM_PROGRAM_ID);
+    ASSERT_OK(SEND(svm, ix, &payer, &counter));
+    ASSERT_EQ(READ_ACCOUNT(svm, &counter.pubkey, CounterState).count, 0);
+}
+
+TEST(rejects_a_duplicate_account) {
+    Ix ix = MAKE_IX(increment, .counter = payer.pubkey,
+                    .authority = payer.pubkey);
+    ASSERT_ERR(SEND(svm, ix, &payer), ERROR_DUPLICATE_ACCOUNT);
+}
+```
+
+Tests in a file share one VM and run in order. `caravel test <filter>` runs
+only tests whose name contains `<filter>`. See `include/caravel/test.h` for
+the full API (PDAs, SPL Token setup, account reads, clock and compute
+budget) and `examples/` for complete suites.
+
+### Backends
+
+C tests run on LiteSVM by default: signed transactions against a bank,
+through `SEND()` and `svm_*()`. They can run on
+[Mollusk](https://github.com/anza-xyz/mollusk) instead (through
+[mollusk-cxx](https://github.com/joeymeere/mollusk-cxx), also downloaded on
+first use), which processes instructions against an account store with no
+signing or fees. Start a project on it with
+`caravel init <name> --backend=mollusk` (or `seashell`), set `[test] backend = "mollusk"` in
+`Caravel.toml`, or pick per file:
+
+```c
+#define CARAVEL_TEST_MOLLUSK
+#include <caravel/test.h>
+
+SETUP { ctx_airdrop(ctx, &payer, SOL(10)); }
+
+TEST(initializes_a_counter) {
+    Ix ix = MAKE_IX(initialize, .payer = payer, .counter = counter,
+                    .system_program = SYSTEM_PROGRAM_ID);
+    ASSERT_OK(PROCESS(ctx, ix));
+}
+```
+
+`PROCESS_CHAIN()` runs instructions one after another and stores the result
+only if all succeed; `PROCESS_TX()` runs them as one transaction.
+
+[Seashell](https://github.com/soundsonacid/seashell) (through
+[seashell-cxx](https://github.com/joeymeere/seashell-cxx)) runs instructions
+against real mainnet state. `SCENARIO("name")` in `SETUP` replays the accounts
+recorded in `tests/scenarios/name.json.gz`; with `RPC_URL` set, accounts the
+test touches that nobody has are fetched from it and recorded there, so
+commit the file and CI stays offline:
+
+```c
+#define CARAVEL_TEST_SEASHELL
+#include <caravel/test.h>
+
+SETUP {
+    SCENARIO("usdc");
+    usdc = PUBKEY("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+}
+
+TEST(reads_the_usdc_mint) {
+    ASSERT_EQ(READ_ACCOUNT(shell, &usdc, MintAccount).decimals, 6);
+}
+```
+
+Its handle is `Shell *shell`, with `PROCESS()` and `shell_*()` helpers.
+Nothing is signed, so a test can act as any authority, such as a real mint's.
+While recording, every address is looked up on mainnet, so accounts a test
+creates need addresses that are unused there (`keypair(n)` ones are not).
+
+`MAKE_IX`, `ASSERT_*`, `READ_ACCOUNT` and `report_cu` are the same on every
+backend. `examples/counter` has its suite written for each, and
+`examples/amm/tests/amm_seashell.c` runs the AMM against the real USDC mint.
+
+TypeScript tests (litesvm + `@solana/kit`) remain available:
+`caravel init <name> --tests=ts`, or `[test] runner = "ts"` in
+`Caravel.toml`. `examples/token-vault` uses them.
+
 ## CLI Reference
 
 | Command | Description |
 |---------|-------------|
-| `caravel init <name>` | Scaffold a new project with entrypoint, state, tests, and config |
+| `caravel init <name>` | Scaffold a new project with entrypoint, state, tests, and config (`--backend=mollusk` or `--backend=seashell` for those test backends, `--tests=ts` for TypeScript tests) |
 | `caravel build` | Compile C sources to SBF and link into `build/program.so` |
-| `caravel test` | Build, then run TypeScript tests via `npm test` |
+| `caravel test [filter]` | Build, then run the C tests in `tests/` (or TypeScript tests via `npm test`) |
 | `caravel deploy` | Deploy `build/program.so` via `solana program deploy` |
 | `caravel clean` | Remove the `build/` directory |
 | `caravel idl` | Generate Anchor-compatible `build/idl.json` from macro definitions |

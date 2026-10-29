@@ -74,6 +74,24 @@ static inline bool _cvl_args_fit(const Parameters *params, uint64_t size) {
         return (args_type *)IX_DATA(params); \
     }
 
+/** internal metadata for tests */
+#ifdef CARAVEL_TEST
+#define _CVL_TEST_KEY(name, flags)   Pubkey name;
+#define _CVL_TEST_FLAGS(name, flags) (uint8_t)(flags),
+#define _CVL_TEST_NAME(name, flags)  #name,
+#define _IX_TEST_META(prefix, accounts_table, args_type) \
+    typedef struct { \
+        accounts_table(_CVL_TEST_KEY) \
+    } _cvl_keys_##prefix; \
+    typedef args_type _cvl_args_type_##prefix; \
+    static const uint8_t _cvl_flags_##prefix[] \
+        __attribute__((unused)) = {accounts_table(_CVL_TEST_FLAGS)}; \
+    static const char *const _cvl_names_##prefix[] \
+        __attribute__((unused)) = {accounts_table(_CVL_TEST_NAME)};
+#else
+#define _IX_TEST_META(prefix, accounts_table, args_type)
+#endif
+
 /* internal - 3-arg (no ix args) */
 #define _IX_3(disc, prefix, accounts_table) \
     DEFINE_ACCOUNTS(prefix, accounts_table) \
@@ -88,6 +106,7 @@ static inline bool _cvl_args_fit(const Parameters *params, uint64_t size) {
         return SUCCESS; \
     } \
     _IX_ARGS_FN(prefix, prefix##_args_t) \
+    _IX_TEST_META(prefix, accounts_table, prefix##_args_t) \
     enum { _disc_##prefix = (disc) };
 
 /* internal - 4-arg (with ix args) */
@@ -103,6 +122,7 @@ static inline bool _cvl_args_fit(const Parameters *params, uint64_t size) {
         return SUCCESS; \
     } \
     _IX_ARGS_FN(prefix, args_type) \
+    _IX_TEST_META(prefix, accounts_table, args_type) \
     enum { _disc_##prefix = (disc) };
 
 /* internal - select 3- or 4-arg variant */

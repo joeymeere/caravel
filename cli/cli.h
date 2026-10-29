@@ -18,12 +18,21 @@
 #define CVL_CLI_VERSION CARAVEL_VERSION_STRING
 #define CVL_MAX_PATH    1024
 #define CVL_MAX_NAME    128
+/** :/ */
+#define CVL_LITESVM_CXX_VERSION  "0.1.0"
+#define CVL_LITESVM_CXX_REPO     "https://github.com/joeymeere/litesvm-cxx"
+#define CVL_MOLLUSK_CXX_VERSION  "0.1.0"
+#define CVL_MOLLUSK_CXX_REPO     "https://github.com/joeymeere/mollusk-cxx"
+#define CVL_SEASHELL_CXX_VERSION "0.1.0"
+#define CVL_SEASHELL_CXX_REPO    "https://github.com/joeymeere/seashell-cxx"
 
 typedef struct {
     char name[CVL_MAX_NAME];
     char version[32];
     char src_dir[CVL_MAX_PATH];
     char build_dir[CVL_MAX_PATH];
+    char runner[8];   /* [test] runner: "c", "ts", or "" to detect */
+    char backend[16]; /* [test] backend: "litesvm", "mollusk", "seashell" */
 } CvlConfig;
 
 static inline void cvl_config_defaults(CvlConfig *cfg) {
@@ -31,6 +40,8 @@ static inline void cvl_config_defaults(CvlConfig *cfg) {
     strcpy(cfg->version, "0.1.0");
     strcpy(cfg->src_dir, "src");
     strcpy(cfg->build_dir, "build");
+    cfg->runner[0]  = '\0';
+    cfg->backend[0] = '\0';
 }
 
 int cmd_init(int argc, char **argv);
@@ -43,7 +54,12 @@ int cmd_dump(int argc, char **argv);
 
 int cvl_config_load(const char *path, CvlConfig *cfg);
 
-int cvl_scaffold_project(const char *name, const char *sbf_ver);
+int cvl_scaffold_project(
+    const char *name,
+    const char *sbf_ver,
+    const char *tests,
+    const char *backend
+);
 
 const char *cvl_find_tool(
     const char *env_var, const char *tool_name, char *buf, size_t bufsz

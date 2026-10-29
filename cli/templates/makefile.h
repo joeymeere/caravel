@@ -60,8 +60,8 @@ static const char *TPL_MAKEFILE =
 "clean:\n"
 "\trm -rf $(BUILD_DIR)\n"
 "\n"
-"test: build\n"
-"\tcd tests && npm install && npm test\n"
+"test:\n"
+"\tcaravel test\n"
 "\n"
 "deploy: build\n"
 "\tsolana program deploy $(SO)\n";

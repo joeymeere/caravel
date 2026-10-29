@@ -43,10 +43,8 @@ typedef struct {
     {sec, #field, offsetof(CvlConfig, field), sizeof(((CvlConfig *)0)->field)}
 
 static const ConfigKey KEYS[] = {
-    KEY("program", name),
-    KEY("program", version),
-    KEY("build", src_dir),
-    KEY("build", build_dir),
+    KEY("program", name),    KEY("program", version), KEY("build", src_dir),
+    KEY("build", build_dir), KEY("test", runner),     KEY("test", backend),
 };
 
 int cvl_config_load(const char *path, CvlConfig *cfg) {

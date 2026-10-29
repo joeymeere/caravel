@@ -99,6 +99,10 @@ jobs:
         with:
           path: ~/.cache/solana/${{ env.PLATFORM_TOOLS }}
           key: platform-tools-${{ runner.os }}-${{ runner.arch }}-${{ env.PLATFORM_TOOLS }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/caravel
+          key: litesvm-cxx-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/cli.h') }}
       - run: make platform-tools PLATFORM_TOOLS=${{ env.PLATFORM_TOOLS }}
       - run: make cli
       - name: caravel test --sbf-ver=${{ matrix.sbf }}
@@ -118,6 +122,10 @@ jobs:
         with:
           path: ~/.cache/solana/${{ env.PLATFORM_TOOLS }}
           key: platform-tools-${{ runner.os }}-${{ runner.arch }}-${{ env.PLATFORM_TOOLS }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/caravel
+          key: litesvm-cxx-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/cli.h') }}
       - run: make platform-tools PLATFORM_TOOLS=${{ env.PLATFORM_TOOLS }}
       - run: make cli
       - name: Compare against baseline

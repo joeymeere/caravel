@@ -170,6 +170,48 @@ TEST(log_helpers) {
     CHECK_EQ(cvl_strlen("abc"), 3);
 }
 
+/** TODO @joey pls consolidate with the tutils impl and pref stop doing this manually */
+static void base58(const Pubkey *key, char out[45]) {
+    static const char A[] =
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    uint8_t digits[64] = {0};
+    size_t len = 0, zeros = 0, n = 0;
+    while (zeros < 32 && key->bytes[zeros] == 0) zeros++;
+    for (size_t i = zeros; i < 32; i++) {
+        unsigned carry = key->bytes[i];
+        for (size_t j = 0; j < len; j++) {
+            carry += (unsigned)digits[j] << 8;
+            digits[j] = (uint8_t)(carry % 58);
+            carry /= 58;
+        }
+        for (; carry; carry /= 58) digits[len++] = (uint8_t)(carry % 58);
+    }
+    for (size_t i = 0; i < zeros; i++) out[n++] = '1';
+    while (len) out[n++] = A[digits[--len]];
+    out[n] = '\0';
+}
+
+TEST(builtin_ids) {
+    static const struct {
+        const Pubkey *id;
+        const char *b58;
+    } ids[] = {
+        {&SYSTEM_PROGRAM_ID, "11111111111111111111111111111111"},
+        {&TOKEN_PROGRAM_ID, "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"},
+        {&ASSOCIATED_TOKEN_PROGRAM_ID,
+         "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"},
+        {&RENT_SYSVAR_ID, "SysvarRent111111111111111111111111111111111"},
+        {&CLOCK_SYSVAR_ID, "SysvarC1ock11111111111111111111111111111111"},
+        {&INSTRUCTIONS_SYSVAR_ID,
+         "Sysvar1nstructions1111111111111111111111111"},
+    };
+    for (size_t i = 0; i < sizeof(ids) / sizeof(*ids); i++) {
+        char got[45];
+        base58(ids[i].id, got);
+        CHECK(strcmp(got, ids[i].b58) == 0);
+    }
+}
+
 int main(void) {
     RUN(version_string);
     RUN(checked_math);
@@ -179,5 +221,6 @@ int main(void) {
     RUN(vec);
     RUN(derive_address_matches_kit);
     RUN(log_helpers);
+    RUN(builtin_ids);
     TEST_REPORT();
 }

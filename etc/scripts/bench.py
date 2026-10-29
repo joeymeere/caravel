@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "etc" / "baseline.json"
 EXAMPLES = ["counter", "vault", "token-vault", "amm"]
 SBF_VERSIONS = ["v0", "v3"]
-CU_LINE = re.compile(r"^\s+([A-Za-z][\w +/-]*): (\d+) CU\s*$", re.M)
+CU_LINE = re.compile(r"^\s+([A-Za-z][\w +/>-]*): (\d+) CU\s*$", re.M)
 
 
 def platform_tools_version():

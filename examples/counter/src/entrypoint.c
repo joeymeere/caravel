@@ -1,12 +1,6 @@
 #include <caravel.h>
+#include "instructions.h"
 #include "state.h"
-
-#define INIT_ACCOUNTS(X) \
-    X(payer, SIGNER | WRITABLE) \
-    X(counter, SIGNER | WRITABLE) \
-    X(system_program, PROGRAM)
-
-IX(0, initialize, INIT_ACCOUNTS)
 
 static uint64_t initialize(
     initialize_accounts_t *ctx, initialize_args_t *args, Parameters *params
@@ -29,12 +23,6 @@ static uint64_t initialize(
     return SUCCESS;
 }
 
-#define INC_ACCOUNTS(X) \
-    X(counter, WRITABLE) \
-    X(authority, SIGNER)
-
-IX(1, increment, INC_ACCOUNTS)
-
 static uint64_t increment(
     increment_accounts_t *ctx, increment_args_t *args, Parameters *params
 ) {
@@ -49,12 +37,6 @@ static uint64_t increment(
     state->count += 1;
     return SUCCESS;
 }
-
-#define DEC_ACCOUNTS(X) \
-    X(counter, WRITABLE) \
-    X(authority, SIGNER)
-
-IX(2, decrement, DEC_ACCOUNTS)
 
 static uint64_t decrement(
     decrement_accounts_t *ctx, decrement_args_t *args, Parameters *params
