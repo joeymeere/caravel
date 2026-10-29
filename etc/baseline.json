@@ -4,16 +4,26 @@
     "amm/v0": {
       "cu": {
         "add_liquidity": 7393,
-        "initialize_pool": 2695,
-        "remove_liquidity": 4981
+        "initialize_pool": 3035,
+        "remove_liquidity": 4981,
+        "seashell add_liquidity": 20205,
+        "seashell initialize_pool": 2355,
+        "seashell swap A->B": 12277,
+        "swap A->B": 3158,
+        "swap B->A": 3160
       },
       "size": 13960
     },
     "amm/v3": {
       "cu": {
         "add_liquidity": 7391,
-        "initialize_pool": 2691,
-        "remove_liquidity": 4981
+        "initialize_pool": 3030,
+        "remove_liquidity": 4981,
+        "seashell add_liquidity": 20203,
+        "seashell initialize_pool": 2352,
+        "seashell swap A->B": 12281,
+        "swap A->B": 3162,
+        "swap B->A": 3164
       },
       "size": 12928
     },
@@ -21,7 +31,13 @@
       "cu": {
         "decrement": 130,
         "increment": 131,
-        "initialize": 1460
+        "initialize": 1460,
+        "mollusk decrement": 131,
+        "mollusk increment": 132,
+        "mollusk initialize": 1460,
+        "seashell decrement": 131,
+        "seashell increment": 132,
+        "seashell initialize": 1460
       },
       "size": 4904
     },
@@ -29,7 +45,13 @@
       "cu": {
         "decrement": 130,
         "increment": 131,
-        "initialize": 1460
+        "initialize": 1460,
+        "mollusk decrement": 131,
+        "mollusk increment": 132,
+        "mollusk initialize": 1460,
+        "seashell decrement": 131,
+        "seashell increment": 132,
+        "seashell initialize": 1460
       },
       "size": 4104
     },
